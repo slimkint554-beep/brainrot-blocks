@@ -1234,12 +1234,17 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
   #screen-game.active .game-top,
   #screen-game.active .card-progress{grid-column:1 / -1;max-width:none}
   #screen-game.active .board-wrap{
-    grid-column:1;grid-row:3;margin:0;align-self:center;height:auto;
+    grid-column:1;grid-row:3;margin:0;align-self:start;height:auto;
     max-width:min(100%,calc(100dvh - 168px));
   }
   #screen-game.active .board{width:100%;height:auto;aspect-ratio:1/1}
   #screen-game.active .tray{grid-column:2;grid-row:3;align-self:start;margin:0;max-width:none}
   #screen-game.active .powers{grid-column:2;grid-row:3;align-self:end;margin:0;max-width:none}
+}
+/* очень широкий экран: даём приложению больше места */
+@media (min-width:1200px){
+  #app{max-width:1080px}
+  #screen-game.active{grid-template-columns:minmax(0,1fr) 320px}
 }
 
 /* низкий альбомный экран (телефон боком, фолды): поле по высоте, рамка облегает */
