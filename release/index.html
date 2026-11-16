@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070a12">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;700;900&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<title>Brainrot Blocks</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= HOME ================= -->
+  <section class="screen active" id="screen-home">
+    <div class="topbar">
+      <div class="brand">🧠 BRAINROT <span>BLOCKS</span></div>
+      <button class="iconbtn" id="btn-notifications" aria-label="Уведомления">🔔<span class="badge" id="notif-badge">0</span></button>
+    </div>
+
+    <div class="home-hero">
+      <div class="hero-card">
+        <div class="hero-emoji">🧠</div>
+        <div class="hero-title">Собирай блоки —<br>коллекционируй брейнротов</div>
+        <div class="hero-sub">Блока-пазл с мем-карточками, редкостями и RAP.</div>
+      </div>
+      <div class="wallet">
+        <span class="pill">🪙 <b id="home-coins">0</b></span>
+        <span class="pill">👥 <b id="home-invites">0</b></span>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <button class="btn btn-primary btn-lg" id="btn-play">▶ Играть</button>
+      <div class="home-actions-row">
+        <button class="btn btn-ghost" id="btn-cases">🎁 Кейсы</button>
+        <button class="btn btn-ghost" id="btn-upgrades">🎡 Апгрейды</button>
+        <button class="btn btn-ghost" id="btn-craft-nav">🔧 Крафт</button>
+      </div>
+    </div>
+
+    <div class="home-stats" id="home-stats"></div>
+
+    <div class="home-nav">
+      <button class="navbtn" data-nav="collection"><span>🗂️</span>Коллекция</button>
+      <button class="navbtn" data-nav="leaderboard"><span>🏆</span>Лидеры</button>
+      <button class="navbtn" data-nav="invite"><span>👥</span>Друзья</button>
+      <button class="navbtn" data-nav="settings"><span>⚙️</span>Ещё</button>
+    </div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section class="screen" id="screen-game">
+    <div class="game-top">
+      <button class="iconbtn" id="btn-game-back" aria-label="Назад">←</button>
+      <div class="scorebox">
+        <div class="score-label">Очки</div>
+        <div class="score-value" id="game-score">0</div>
+      </div>
+      <div class="combobox"><span class="combo-x">×</span><b id="game-combo">1</b></div>
+      <div class="pill small">🪙 <b id="game-coins">0</b></div>
+    </div>
+
+    <div class="card-progress">
+      <div class="card-progress-bar"><div class="card-progress-fill" id="card-progress-fill"></div></div>
+      <div class="card-progress-text" id="card-progress-text">До карточки: 150 очков</div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+      <div class="fx-layer" id="fx-layer"></div>
+    </div>
+
+    <div class="tray" id="tray"></div>
+
+    <div class="powers">
+      <button class="powerbtn" id="btn-shuffle">🔀 Перемешать <span>50🪙</span></button>
+      <button class="powerbtn" id="btn-hint">💡 Подсказка <span>30🪙</span></button>
+    </div>
+  </section>
+
+  <!-- ================= COLLECTION ================= -->
+  <section class="screen" id="screen-collection">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Коллекция</h2>
+      <div class="pill small">🪙 <b id="col-coins">0</b></div>
+    </div>
+    <div class="col-summary" id="col-summary"></div>
+    <div class="filter-row" id="col-filters"></div>
+    <div class="rarity-legend" id="rarity-legend"></div>
+    <div class="cards-grid" id="cards-grid"></div>
+    <button class="btn btn-ghost btn-block" id="btn-craft-from-col">🔧 Крафт карточек</button>
+  </section>
+
+  <!-- ================= LEADERBOARD ================= -->
+  <section class="screen" id="screen-leaderboard">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Лидеры</h2>
+    </div>
+    <div class="seg" id="lb-kind">
+      <button class="segbtn" data-kind="points">По очкам</button>
+      <button class="segbtn" data-kind="cards">По карточкам</button>
+    </div>
+    <div class="seg" id="lb-period">
+      <button class="segbtn" data-period="day">День</button>
+      <button class="segbtn" data-period="week">Неделя</button>
+      <button class="segbtn" data-period="month">Месяц</button>
+    </div>
+    <div class="lb-place" id="lb-place"></div>
+    <div class="lb-list" id="lb-list"></div>
+  </section>
+
+  <!-- ================= INVITE ================= -->
+  <section class="screen" id="screen-invite">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Друзья</h2>
+    </div>
+    <div class="invite-card">
+      <div class="invite-emoji">👥</div>
+      <div class="invite-title">Приглашай друзей — лови карточки чаще</div>
+      <div class="invite-bonus" id="invite-bonus">+0% к шансу карточки</div>
+      <div class="invite-count">Приглашено: <b id="invite-count">0</b> / 12</div>
+      <button class="btn btn-primary btn-block" id="btn-invite">Пригласить друга</button>
+      <div class="invite-note">Каждый друг даёт +10% к шансу выпадения карточки. В VK здесь будет реальная отправка приглашения.</div>
+    </div>
+  </section>
+
+  <!-- ================= CASES ================= -->
+  <section class="screen" id="screen-cases">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Кейсы</h2>
+      <div class="pill small">🪙 <b id="cases-coins">0</b></div>
+    </div>
+    <div class="cases-list" id="cases-list"></div>
+    <div class="cases-note">Монеты получаются с продажи карточек. Шансы выпадения показаны честно.</div>
+  </section>
+
+  <!-- ================= UPGRADES (WHEEL) ================= -->
+  <section class="screen" id="screen-upgrades">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Апгрейды</h2>
+      <div class="pill small">🎴 <b id="up-count">0</b></div>
+    </div>
+    <div class="up-stake-slot" id="up-stake-slot"></div>
+    <div class="up-tiles" id="up-tiles"></div>
+    <div class="wheel-wrap">
+      <div class="wheel">
+        <div class="wheel-disc" id="wheel-disc"></div>
+        <div class="wheel-arrow" id="wheel-arrow"></div>
+        <div class="wheel-hub"></div>
+      </div>
+      <div class="wheel-chance-pill">Шанс <b id="wheel-chance">50%</b></div>
+    </div>
+    <div class="cases-note">Выберите карточку и шанс. Награда = цена карточки / шанс. Меньше шанс — ценнее награда.</div>
+    <button class="btn btn-primary btn-lg btn-block" id="btn-spin">Крутить</button>
+  </section>
+
+  <!-- ================= CRAFT ================= -->
+  <section class="screen" id="screen-craft">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Крафт</h2>
+      <div class="pill small">🎴 <b id="craft-count">0</b></div>
+    </div>
+    <div class="craft-explain">Выберите <b>3 карточки одной редкости</b> — получите <b>1 карточку следующей</b> редкости. Эффекты выбранных карточек <b>суммируются</b>. Шанс доп. эффектов: 10% → +1, 5% → +2, 2% → +3.</div>
+    <div class="filter-row" id="craft-rarities"></div>
+    <div id="craft-grid"></div>
+    <div class="craft-bottom">
+      <div class="craft-slots" id="craft-slots"></div>
+      <div class="craft-result" id="craft-result"></div>
+      <button class="btn btn-primary btn-lg btn-block" id="btn-craft">Выбрано 0/3</button>
+      <button class="btn btn-ghost btn-block" id="btn-sell-dups">Продать дубликаты</button>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="screen" id="screen-settings">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Ещё</h2>
+    </div>
+    <div class="settings-list" id="settings-list">
+      <button class="setting-row" id="btn-sound">🔊 Звук: <b id="sound-state">вкл</b></button>
+      <button class="setting-row" id="btn-testcard">🎁 Выдать тестовую карточку</button>
+      <button class="setting-row" id="btn-add-home">📲 Добавить на главный экран</button>
+      <button class="setting-row" id="btn-tutorial2">🎓 Обучение заново</button>
+      <button class="setting-row danger" id="btn-reset">🗑️ Сбросить прогресс</button>
+      <div class="about">Brainrot Blocks · прототип v0.2<br>Данные хранятся локально в браузере</div>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast-container"></div>
+<div id="modal-root"></div>
+
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+<script>
+window.__errors = [];
+window.addEventListener('error', function (e) { window.__errors.push(String(e.message)); });
+window.addEventListener('unhandledrejection', function (e) { window.__errors.push('rejection: ' + String(e.reason)); });
+</script>
+<script src="js/data.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
