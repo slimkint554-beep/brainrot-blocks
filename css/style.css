@@ -1202,3 +1202,59 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
   background:linear-gradient(135deg,rgba(255,46,136,.32),rgba(255,209,102,.26));
   border-color:#ff2e88;color:#fff;box-shadow:0 0 18px -4px #ff2e88;
 }
+
+/* ================= v0.27: игровой экран целиком влезает =================
+   Раньше экран игры имел height:auto, а поле тянулось по ширине — на десктопе
+   и планшетах поле раздувалось и лоток с фигурами уезжал за нижний край.
+   Теперь экран ровно по высоте окна, поле квадратное и всегда вписывается:
+   - портрет: поле по ширине, но не выше свободного места (calc от 100dvh);
+   - широкий десктоп: две колонки, поле заполняет высоту левой колонки;
+   - низкий альбомный экран (телефон боком, фолды): поле считается как min(ширина, высота). */
+#screen-game{height:100dvh;overflow:hidden}
+#screen-game.active{display:flex;flex-direction:column}
+#screen-game .game-top,
+#screen-game .card-progress{flex:0 0 auto}
+
+/* портрет/планшет: рамка облегает поле, свободное место распределяется по краям */
+#screen-game .board-wrap{
+  flex:0 0 auto;margin:auto 0;width:100%;
+  max-width:min(640px,calc(100dvh - 320px));
+  padding:10px;display:flex;align-items:center;justify-content:center;
+}
+#screen-game .board{flex:0 0 auto;width:100%;height:auto;aspect-ratio:1/1;max-width:none;max-height:none}
+#screen-game .tray,
+#screen-game .powers{flex:0 0 auto;max-width:640px;margin-left:auto;margin-right:auto;width:100%}
+
+/* широкий десктоп: поле слева, лоток и кнопки справа — всё в одном экране */
+@media (min-width:900px){
+  #screen-game.active{
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;
+    grid-template-rows:auto auto minmax(0,1fr);gap:10px 16px;align-content:stretch;
+  }
+  #screen-game.active .game-top,
+  #screen-game.active .card-progress{grid-column:1 / -1;max-width:none}
+  #screen-game.active .board-wrap{
+    grid-column:1;grid-row:3;margin:0;align-self:center;height:auto;
+    max-width:min(100%,calc(100dvh - 168px));
+  }
+  #screen-game.active .board{width:100%;height:auto;aspect-ratio:1/1}
+  #screen-game.active .tray{grid-column:2;grid-row:3;align-self:start;margin:0;max-width:none}
+  #screen-game.active .powers{grid-column:2;grid-row:3;align-self:end;margin:0;max-width:none}
+}
+
+/* низкий альбомный экран (телефон боком, фолды): поле по высоте, рамка облегает */
+@media (orientation:landscape) and (max-height:600px){
+  #screen-game.active{
+    display:grid;grid-template-columns:minmax(0,1fr) 240px;
+    grid-template-rows:auto auto minmax(0,1fr);gap:8px;align-content:stretch;
+  }
+  #screen-game.active .game-top,
+  #screen-game.active .card-progress{grid-column:1 / -1}
+  #screen-game.active .board-wrap{
+    grid-column:1;grid-row:3;min-height:0;padding:10px;
+    margin:auto;width:100%;max-width:calc(100dvh - 160px);
+  }
+  #screen-game.active .board{width:100%;height:auto;aspect-ratio:1/1;max-width:none;max-height:none}
+  #screen-game.active .tray{grid-column:2;grid-row:3;align-self:start;margin:0;min-height:auto;max-width:none}
+  #screen-game.active .powers{grid-column:2;grid-row:3;align-self:end;margin:0;max-width:none}
+}
