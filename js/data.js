@@ -29,8 +29,8 @@ const CONFIG = {
   // Онлайн-лидерборд. Пока пусто — игра показывает личные результаты.
   // После деплоя воркера (см. server/README.md) впишите сюда его адрес
   // и тот же токен, что задан в настройках воркера.
-  LEADERBOARD_API: '',
-  LEADERBOARD_TOKEN: '',
+  LEADERBOARD_API: 'https://brainrot-leaderboard.slimkint554.workers.dev',
+  LEADERBOARD_TOKEN: 'BB-6sqhf3e90xiaricq',
   LEADERBOARD_MAX: 50,
 };
 
