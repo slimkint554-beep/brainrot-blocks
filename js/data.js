@@ -21,11 +21,21 @@ const CONFIG = {
   COMBO_STEP: 0.25,
   COMBO_MAX: 10,
   SAVE_CHANCE: 0.5,         // шанс, что «сейв от тупика» сработает (иначе — проигрыш)
-  DEV: true,                // false в релизной сборке — скрывает отладочные функции
+  DEV: false,                // false в релизной сборке — скрывает отладочные функции
   AD_COIN_REWARD: 100,      // монет за просмотр рекламы
   AD_COIN_LIMIT: 3,         // просмотров за период
   AD_COIN_PERIOD_MS: 3 * 60 * 60 * 1000, // период обновления лимита (3 часа)
 };
+
+// Страховка: отладочные функции (тестовая карточка, window.__bb) работают
+// только на локальных адресах. Даже если в сборку случайно попал DEV: true,
+// на публичном домене они отключатся.
+(function guardDevMode() {
+  const h = (typeof location !== 'undefined') ? location.hostname : '';
+  const isLocal = location.protocol === 'file:' || !h || h === 'localhost' ||
+    h === '127.0.0.1' || h === '::1' || /^192\.168\./.test(h) || /^10\./.test(h);
+  if (CONFIG.DEV && !isLocal) CONFIG.DEV = false;
+})();
 
 /* ---------- Редкости (сумма шансов = 1.0) ---------- */
 const RARITIES = [
