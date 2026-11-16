@@ -1778,7 +1778,19 @@ profile.cards.push(won);
     const craftFromCol = $('#btn-craft-from-col');
     if (craftFromCol) craftFromCol.onclick = function () { show('craft'); };
     // в релизной сборке (CONFIG.DEV = false) убираем отладочные функции
-    if (!CONFIG.DEV) { const tb = $('#btn-testcard'); if (tb) tb.remove(); }
+    const testCardBtn = $('#btn-testcard');
+    if (testCardBtn) {
+      if (CONFIG.DEV) {
+        testCardBtn.onclick = function () {
+          const c = CardFactory.makeCard();
+          queueCards([c]);
+          toast('Тестовая карточка получена', 'good');
+          save(); updateBadge();
+        };
+      } else {
+        testCardBtn.remove();
+      }
+    }
     const spinBtn = $('#btn-spin');
     if (spinBtn) spinBtn.onclick = doSpin;
 
@@ -1830,12 +1842,6 @@ profile.cards.push(won);
     $('#btn-sound').onclick = function () {
       profile.settings.sound = !profile.settings.sound;
       save(); renderSettings();
-    };
-    $('#btn-testcard').onclick = function () {
-      const c = CardFactory.makeCard();
-      queueCards([c]);
-      toast('Тестовая карточка получена', 'good');
-      save(); updateBadge();
     };
     // VK Bridge: инициализация и «на главный экран»
     if (typeof Platform !== 'undefined') {
