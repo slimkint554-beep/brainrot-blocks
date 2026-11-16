@@ -1209,13 +1209,14 @@ profile.cards.push(won);
   }
 
   /* ---- конец игры ---- */
-  function finalizeRun() {
-    if (runFinalized || !game) return;
-    runFinalized = true;
-    Store.recordRun(profile, { score: game.score, cards: game.cardsEarned });
-    profile.stats.bestCombo = Math.max(profile.stats.bestCombo, game.bestCombo);
-    save();
-  }
+    function finalizeRun() {
+      if (runFinalized || !game) return;
+      runFinalized = true;
+      Store.recordRun(profile, { score: game.score, cards: game.cardsEarned });
+      profile.stats.bestCombo = Math.max(profile.stats.bestCombo, game.bestCombo);
+      save();
+      submitToLeaderboard();
+    }
 
   function endGame() {
     if (endShown) return;
@@ -1634,10 +1635,15 @@ profile.cards.push(won);
   }
 
   /* ---------------- LEADERBOARD ---------------- */
-  function renderLeaderboard() {
-    const res = Store.leaderboard(profile, lbState.kind, lbState.period);
-    $('#lb-place').innerHTML = 'Твоё место: <b>' + res.place + '</b> из ' + res.total;
-    $('#lb-list').innerHTML = res.entries.map(function (e, i) {
+  const PERIOD_LABEL = { day: 'день', week: 'неделю', month: 'месяц' };
+  let lbSeq = 0;
+
+  function paintLeaderboard(res, note) {
+    $('#lb-place').innerHTML = note
+      ? escapeHtml(note)
+      : ('Твоё место: <b>' + res.place + '</b> из ' + res.total);
+
+    const rows = (res.entries || []).map(function (e, i) {
       const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
       return '<div class="lb-row ' + (e.isPlayer ? 'me' : '') + '">' +
         '<div class="lb-rank">' + rank + '</div>' +
@@ -1645,8 +1651,54 @@ profile.cards.push(won);
         '<div class="lb-value">' + fmt(e.value) + '</div>' +
         '</div>';
     }).join('');
+    $('#lb-list').innerHTML = rows || '<div class="lb-row"><div class="lb-name">Пока пусто — сыграй забег</div></div>';
+
     $$('#lb-kind .segbtn').forEach(function (b) { b.classList.toggle('active', b.dataset.kind === lbState.kind); });
     $$('#lb-period .segbtn').forEach(function (b) { b.classList.toggle('active', b.dataset.period === lbState.period); });
+  }
+
+  function renderLeaderboard() {
+    const kind = lbState.kind, period = lbState.period;
+    const personal = Store.personalBoard(profile, kind, period);
+    const personalNote = 'Личные результаты за ' + PERIOD_LABEL[period] + ' · всего ' + fmt(personal.sum);
+
+    if (typeof Online === 'undefined' || !Online.enabled()) {
+      paintLeaderboard(personal, personalNote);
+      return;
+    }
+
+    const seq = ++lbSeq;
+    paintLeaderboard(personal, 'Загружаю онлайн-таблицу…');
+    Online.top(kind, period, true).then(function (data) {
+      if (seq !== lbSeq) return;
+      if (!data || !Array.isArray(data.entries)) { paintLeaderboard(personal, personalNote); return; }
+      const myId = Online.myId();
+      const entries = data.entries.map(function (e) {
+        return {
+          name: e.name || 'Игрок',
+          value: e.value || 0,
+          isPlayer: !!(myId && e.id && String(e.id) === String(myId)),
+        };
+      }).sort(function (a, b) { return b.value - a.value; });
+      const idx = entries.findIndex(function (e) { return e.isPlayer; });
+      if (idx >= 0) paintLeaderboard({ entries: entries, place: idx + 1, total: entries.length }, null);
+      else paintLeaderboard({ entries: entries, place: 0, total: entries.length }, 'Ты пока не в таблице за ' + PERIOD_LABEL[period]);
+    }).catch(function () {
+      if (seq !== lbSeq) return;
+      paintLeaderboard(personal, personalNote);
+    });
+  }
+
+  // Отправка своих результатов на сервер (если онлайн-лидерборд подключён)
+  function submitToLeaderboard() {
+    if (typeof Online === 'undefined' || !Online.enabled()) return;
+    const entries = [];
+    ['day', 'week', 'month'].forEach(function (p) {
+      const agg = Store.aggregate(profile, p);
+      entries.push({ kind: 'points', period: p, value: agg.points });
+      entries.push({ kind: 'cards', period: p, value: agg.cards });
+    });
+    Online.submit({ entries: entries });
   }
 
   /* ---------------- INVITE ---------------- */

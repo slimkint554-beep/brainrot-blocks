@@ -113,67 +113,36 @@ const Store = (function () {
     return { points, cards, games };
   }
 
-  /* ---------- Детерминированный ГПСЧ ---------- */
-  function hashStr(s) {
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  }
-  function mulberry32(a) {
-    return function () {
-      a |= 0; a = (a + 0x6D2B79F5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  const BOT_NAMES = [
-    'СигмаКот', 'ТапокБог', 'МемныйДед', 'ГигаЖаба', 'КапитанКастрюля',
-    'СкибидиПельмень', 'ЛягушкаБосс', 'ХлебныйМаг', 'НосочныйКороль', 'ОгурецХаос',
-    'КвакКвакыч', 'Пельмень228', 'ТоксичныйКот', 'Абобус', 'МозгоЕд',
-    'ШрекНаВолне', 'ЖабаНиндзя', 'ТапокСудьбы', 'КринжМастер', 'ПузырьТишины',
-    'СырныйДух', 'БанановыйБог', 'КринжКринжыч', 'УлиткаСпид', 'МоржМемов',
-    'ГрибнойШторм', 'КотШредингера', 'СкуфВолшебник', 'ЧиллГай', 'МемнаяПыль',
-  ];
-
-  /* Фейковый лидерборд (демо). В реальном VK — сервер/VK Bridge. */
-  function leaderboard(p, kind, period) {
-    const key = period + '|' + (kind || 'points');
-    // период-ключ, чтобы боты «менялись» в новый день/неделю/месяц
-    const now = Date.now();
-    const periodKey = period === 'day'
-      ? new Date(now).toISOString().slice(0, 10)
-      : period === 'week'
-        ? 'w' + Math.floor((startOf('week', now)) / 86400000)
-        : 'm' + new Date(now).getFullYear() + '-' + (new Date(now).getMonth() + 1);
-    const rng = mulberry32(hashStr(key + periodKey));
-
-    const scale = period === 'day' ? 1 : period === 'week' ? 6 : 24;
-    const entries = [];
-    const used = new Set();
-    for (let i = 0; i < 19; i++) {
-      let name = BOT_NAMES[Math.floor(rng() * BOT_NAMES.length)];
-      let guard = 0;
-      while (used.has(name) && guard++ < 50) name = BOT_NAMES[Math.floor(rng() * BOT_NAMES.length)];
-      used.add(name);
-
-      if (kind === 'cards') {
-        const cards = Math.round((4 + rng() * 40) * scale * (0.6 + rng() * 0.9));
-        entries.push({ name, value: cards, isPlayer: false });
-      } else {
-        const pts = Math.round((300 + rng() * 2600) * scale * (0.6 + rng() * 0.9));
-        entries.push({ name, value: pts, isPlayer: false });
-      }
-    }
+  /* ---------- Личные результаты за период ----------
+     Раньше здесь был «лидерборд» с придуманными соперниками. Настоящую
+     таблицу даёт онлайн-лидерборд (js/online.js), а пока он не подключён,
+     честно показываем лучшие забеги игрока за этот период. */
+  function personalBoard(p, kind, period) {
+    const from = startOf(period);
+    const field = kind === 'cards' ? 'cards' : 'score';
+    const runs = p.history
+      .filter(h => h.ts >= from && (h[field] || 0) > 0)
+      .map(h => ({ ts: h.ts, value: h[field] || 0 }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
 
     const agg = aggregate(p, period);
-    const playerValue = kind === 'cards' ? agg.cards : agg.points;
-    entries.push({ name: 'Ты', value: playerValue, isPlayer: true });
+    const entries = runs.map((r, i) => ({
+      name: 'Забег ' + (i + 1),
+      value: r.value,
+      isPlayer: true,
+      ts: r.ts,
+    }));
 
-    entries.sort((a, b) => b.value - a.value);
-    const place = entries.findIndex(e => e.isPlayer) + 1;
-    return { entries: entries.slice(0, 20), place, total: entries.length };
+    return {
+      entries: entries,
+      place: 0,
+      total: entries.length,
+      sum: kind === 'cards' ? agg.cards : agg.points,
+      personal: true,
+      kind: kind,
+      period: period,
+    };
   }
 
   /* ---------- Ежедневная награда ---------- */
@@ -193,7 +162,7 @@ const Store = (function () {
 
   return {
     load, save, reset, uid, pushNotification, unreadCount,
-    addCards, recordRun, aggregate, leaderboard, checkDaily,
-    startOf, BOT_NAMES,
+    addCards, recordRun, aggregate, personalBoard, checkDaily,
+    startOf,
   };
 })();
