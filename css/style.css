@@ -1263,3 +1263,96 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
   #screen-game.active .tray{grid-column:2;grid-row:3;align-self:start;margin:0;min-height:auto;max-width:none}
   #screen-game.active .powers{grid-column:2;grid-row:3;align-self:end;margin:0;max-width:none}
 }
+
+/* =====================================================================
+   v0.3 — новая волна: больше контраста, неона и «безумных» эффектов
+   ===================================================================== */
+
+/* --- ссылка-приглашение --- */
+.invite-link{
+  width:100%;margin:10px 0 0;padding:12px 14px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(124,92,255,.14),rgba(0,212,255,.10)),#0b1120;
+  border:1px dashed rgba(124,92,255,.6);color:#cfe0ff;
+  font-family:'Rubik',sans-serif;font-size:12px;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  box-shadow:inset 0 0 22px -8px rgba(124,92,255,.7);
+}
+.invite-pending{margin-top:10px;font-size:12px;line-height:1.45;color:var(--muted);text-align:center}
+.invite-note{margin-top:10px}
+.invite-count b#invite-max{color:#7c5cff}
+
+/* --- аврора на фоне приложения (двигается и переливается) --- */
+.aurora-layer{
+  position:fixed;inset:-20%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(38% 30% at 18% 22%, rgba(255,46,136,.30), transparent 62%),
+    radial-gradient(34% 28% at 82% 16%, rgba(0,212,255,.26), transparent 62%),
+    radial-gradient(40% 34% at 34% 84%, rgba(124,92,255,.30), transparent 64%),
+    radial-gradient(30% 26% at 78% 74%, rgba(57,217,138,.22), transparent 62%);
+  filter:blur(46px) saturate(1.25);
+  animation:auroraDrift 22s ease-in-out infinite alternate;
+}
+@keyframes auroraDrift{
+  0%{transform:translate3d(-3%,-2%,0) scale(1) rotate(0deg)}
+  50%{transform:translate3d(3%,2%,0) scale(1.08) rotate(2deg)}
+  100%{transform:translate3d(-2%,3%,0) scale(1.04) rotate(-2deg)}
+}
+/* приложение над авророй */
+#app{position:relative;z-index:1}
+
+/* --- кнопки: бегущий блик + отзыв на нажатие --- */
+.btn{position:relative;overflow:hidden;isolation:isolate}
+.btn::after{
+  content:"";position:absolute;top:-60%;left:-40%;width:32%;height:220%;z-index:-1;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);
+  transform:rotate(18deg);animation:btnShine 4.2s ease-in-out infinite;pointer-events:none;
+}
+@keyframes btnShine{0%{left:-45%}50%{left:135%}100%{left:135%}}
+.btn:active{transform:translateY(2px) scale(.985)}
+.btn-primary{box-shadow:0 10px 30px -12px rgba(124,92,255,.85),0 0 0 1px rgba(255,255,255,.06) inset}
+
+/* --- карточки: неон, подъём и вращающаяся рамка у «особых» --- */
+.card{transition:transform .18s cubic-bezier(.2,.9,.2,1),box-shadow .18s ease,border-color .18s ease}
+.card:hover,.ctile:hover,.case-tile:hover{transform:translateY(-4px) scale(1.02)}
+.card.has-fx{box-shadow:0 0 0 1px rgba(255,255,255,.10),0 18px 42px -22px rgba(0,0,0,.95),
+  0 0 26px -6px var(--fx, #7c5cff)}
+.card.has-fx::before{
+  content:"";position:absolute;inset:-2px;border-radius:inherit;z-index:-1;
+  background:conic-gradient(from 0deg,var(--fx,#7c5cff),transparent 30%,var(--fx,#7c5cff) 60%,transparent 90%);
+  animation:spinBorder 3.4s linear infinite;opacity:.75;filter:blur(6px);
+}
+@keyframes spinBorder{to{transform:rotate(360deg)}}
+
+/* бейдж редкости дышит */
+[class*="card-badge"],[class*="col-badge"],.rarity-legend b{animation:badgeBreathe 2.6s ease-in-out infinite}
+@keyframes badgeBreathe{0%,100%{filter:brightness(1) saturate(1)}50%{filter:brightness(1.4) saturate(1.35)}}
+
+/* --- конфетти на редких дропах --- */
+.confetti{position:fixed;width:10px;height:14px;border-radius:3px;pointer-events:none;z-index:2400;
+  animation:confettiFall 1.5s cubic-bezier(.25,.7,.4,1) forwards}
+@keyframes confettiFall{
+  0%{opacity:0;transform:translate3d(0,-20px,0) rotate(0deg) scale(.6)}
+  12%{opacity:1}
+  100%{opacity:0;transform:translate3d(var(--dx,0),58vh,0) rotate(var(--rot,540deg)) scale(1)}
+}
+
+/* вспышка экрана на очень редком дропе */
+.screen-flash{position:fixed;inset:0;pointer-events:none;z-index:2300;
+  background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.55),transparent 62%);
+  animation:flashOut .55s ease-out forwards}
+@keyframes flashOut{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+
+/* --- заголовки и цифры: неоновое свечение --- */
+.brand span,.score-value,.go-stats b,.invite-bonus{
+  text-shadow:0 0 18px rgba(124,92,255,.65),0 0 34px rgba(255,46,136,.35);
+}
+.score-value{animation:scoreGlow 2.8s ease-in-out infinite}
+@keyframes scoreGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.22)}}
+
+/* --- плитки лотка: лёгкое покачивание при бездействии --- */
+.pieceslot .piece{transition:transform .14s ease,filter .14s ease}
+.pieceslot:active .piece{transform:scale(1.06) rotate(-2deg);filter:brightness(1.15)}
+
+/* --- переключатели и чипы: активный горит ярче --- */
+.chip.active,.segbtn.active,.navbtn.active{box-shadow:0 0 22px -6px rgba(124,92,255,.9)}
+
