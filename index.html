@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;700;900&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
 <title>Brainrot Blocks</title>
-<link rel="stylesheet" href="css/style.css?v=1794869525">
+<link rel="stylesheet" href="css/style.css?v=1794932675">
 </head>
 <body>
 <div id="app">
@@ -124,9 +124,15 @@
       <div class="invite-emoji">👥</div>
       <div class="invite-title">Приглашай друзей — лови карточки чаще</div>
       <div class="invite-bonus" id="invite-bonus">+0% к шансу карточки</div>
-      <div class="invite-count">Приглашено: <b id="invite-count">0</b> / 12</div>
-      <button class="btn btn-primary btn-block" id="btn-invite">Пригласить друга</button>
-      <div class="invite-note">Каждый друг даёт +10% к шансу выпадения карточки. В VK здесь будет реальная отправка приглашения.</div>
+      <div class="invite-count">Подтверждено друзей: <b id="invite-count">0</b> / <b id="invite-max">5</b></div>
+      <button class="btn btn-primary btn-block" id="btn-invite">Отправить приглашение</button>
+      <input class="invite-link" id="invite-link" readonly value="…" aria-label="Ваша ссылка-приглашение">
+      <button class="btn btn-ghost btn-block" id="btn-invite-copy">📋 Скопировать ссылку</button>
+      <div class="invite-pending" id="invite-pending">Бонус начислится, когда друг зайдёт по ссылке и начнёт играть.</div>
+      <div class="invite-note">
+        +5% к шансу карточки за каждого друга, который реально перешёл по ссылке.
+        Максимум 5 друзей — то есть до +25%. Просто отправить ссылку недостаточно.
+      </div>
     </div>
   </section>
 
@@ -207,11 +213,11 @@ window.__errors = [];
 window.addEventListener('error', function (e) { window.__errors.push(String(e.message)); });
 window.addEventListener('unhandledrejection', function (e) { window.__errors.push('rejection: ' + String(e.reason)); });
 </script>
-<script src="js/data.js?v=1794869525"></script>
-<script src="js/platform.js?v=1794869525"></script>
-<script src="js/online.js?v=1794869525"></script>
-<script src="js/engine.js?v=1794869525"></script>
-<script src="js/storage.js?v=1794869525"></script>
-<script src="js/app.js?v=1794869525"></script>
+<script src="js/data.js?v=1794932675"></script>
+<script src="js/platform.js?v=1794932675"></script>
+<script src="js/online.js?v=1794932675"></script>
+<script src="js/engine.js?v=1794932675"></script>
+<script src="js/storage.js?v=1794932675"></script>
+<script src="js/app.js?v=1794932675"></script>
 </body>
 </html>
