@@ -192,6 +192,9 @@ const BlockEngine = (function () {
 
     const newCards = tryCardRolls(state);
 
+    let saved = false;
+    const beforeTray = state.tray.map(function (p) { return p ? p.m : null; });
+
     // конец пачки (все 3 фигуры поставлены): если за пачку не собрали ни одной линии — комбо сбрасывается
     if (state.tray.every(p => !p)) {
       if ((state.batchClears || 0) === 0) state.combo = 0;
@@ -201,6 +204,7 @@ const BlockEngine = (function () {
       if (!hasMoves(state) && Math.random() < CONFIG.SAVE_CHANCE) {
         let g = 0;
         while (!hasMoves(state) && g++ < 30) refillTray(state);
+        saved = true;
       }
     } else if (!hasMoves(state)) {
       // анти-тупик: остались фигуры, но ни одна не влезает — с шансом CONFIG.SAVE_CHANCE заменяем неподходящие
@@ -210,9 +214,16 @@ const BlockEngine = (function () {
             state.tray[i] = randomPlaceablePiece(state.grid);
           }
         }
+        saved = true;
       }
     }
-    if (!hasMoves(state)) state.gameOver = true;
+    if (!hasMoves(state)) { state.gameOver = true; saved = false; }
+
+    // Кому именно досталась пачка: индексы слотов, где фигура сменилась
+    const replaced = [];
+    state.tray.forEach(function (p, i) {
+      if (p && p.m !== beforeTray[i]) replaced.push(i);
+    });
 
     return {
       ok: true,
@@ -221,6 +232,8 @@ const BlockEngine = (function () {
       comboMult,
       combo: state.combo,
       newCards,
+      saved: saved,
+      replaced: replaced,
       gameOver: state.gameOver,
     };
   }

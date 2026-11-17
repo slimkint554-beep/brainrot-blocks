@@ -77,6 +77,7 @@
   const SFX = {
     click: function () { tone(520, 0.04, 'square', 0.05); },
     pickup: function () { tone(400, 0.05, 'triangle', 0.08); },
+    snap: function () { tone(780, 0.03, 'sine', 0.045); },
     place: function () { tone(300, 0.07, 'triangle', 0.1); },
     invalid: function () { tone(150, 0.14, 'sawtooth', 0.09); },
     line: function (combo) { const b = 520 + Math.min(combo, 10) * 45; arp([b, b * 1.25, b * 1.5], 0.055, 0.1, 'sine', 0.11); },
@@ -84,6 +85,7 @@
     rarity: function (order) { const b = 520 + (order || 0) * 90; arp([b, b * 1.2, b * 1.5, b * 2], 0.07, 0.16, 'sine', 0.12); },
     coins: function () { arp([900, 1200], 0.05, 0.09, 'square', 0.07); },
     over: function () { arp([420, 320, 210], 0.13, 0.22, 'sine', 0.12); },
+  save: function () { arp([520, 700, 900, 1180], 0.05, 0.13, 'triangle', 0.11); },
     tick: function () { tone(1400, 0.02, 'square', 0.035); },
     spin: function () { tone(280, 0.5, 'sawtooth', 0.05); }
   };
@@ -329,19 +331,17 @@
     if (maxDim === 3) return 18;
     return 22;
   }
-  function ghostCellPx(maxDim) {
-    if (maxDim >= 5) return 16;
-    if (maxDim === 4) return 19;
-    if (maxDim === 3) return 23;
-    return 27;
-  }
 
-  function makePieceEl(m, cellPx, ghost, color) {
+  function makePieceEl(m, cellPx, ghost, color, gap) {
     const size = BlockEngine.shapeSize(m);
     const el = document.createElement('div');
     el.className = ghost ? 'drag-ghost' : 'piece';
     el.style.setProperty(ghost ? '--gpc' : '--pc', cellPx + 'px');
     if (color) el.style.setProperty('--pcol', color);
+    if (gap) {
+      el.style.gap = gap + 'px';
+      if (ghost) el.style.setProperty('--ggap', gap + 'px');
+    }
     el.style.gridTemplateColumns = 'repeat(' + size.w + ', ' + cellPx + 'px)';
     el.style.gridTemplateRows = 'repeat(' + size.h + ', ' + cellPx + 'px)';
     for (let r = 0; r < size.h; r++) {
@@ -354,7 +354,19 @@
     return el;
   }
 
-  function renderTray() {
+  // В руке фигура заметно крупнее клетки поля (на тач-экране — сильнее всего:
+  // палец закрывает много, а так видно и форму, и место). Когда фигура попадает
+  // на валидное место, призрак «садится» до точного размера клетки (dock),
+  // поэтому сразу понятно, что она встанет ровно в подсвеченные клетки.
+  function dragMetrics(touch) {
+    const m = boardMetrics();
+    const cell = Math.max(18, Math.min(80, m.cell));
+    const gap = Math.max(2, Math.round(m.gap));
+    const k = touch ? 1.3 : 1.12;
+    return { cell: Math.round(cell * k), gap: gap, dock: 1 / k, k: k };
+  }
+
+  function renderTray(dealIdx) {
     const tray = trayEl();
     tray.innerHTML = '';
     game.tray.forEach(function (p, i) {
@@ -365,6 +377,11 @@
         const size = BlockEngine.shapeSize(p.m);
         const el = makePieceEl(p.m, pieceCellPx(Math.max(size.h, size.w)), false, p.color);
         el.dataset.idx = i;
+        // «раздача» новых фигур: короткая пружинная анимация по очереди
+        if (dealIdx && dealIdx.indexOf(i) >= 0) {
+          el.classList.add('deal-in');
+          el.style.setProperty('--di', String(Math.max(0, dealIdx.indexOf(i))));
+        }
         slot.appendChild(el);
       }
       tray.appendChild(slot);
@@ -460,15 +477,31 @@
   function clearPreview() {
     $$('#board .cell.preview-ok, #board .cell.preview-bad').forEach(function (el) {
       el.classList.remove('preview-ok', 'preview-bad');
+      el.style.removeProperty('--pv');
+      el.style.removeProperty('--pv-bg');
     });
   }
-  function previewPlacement(r0, c0, m, ok) {
+
+  function hexToRgb(hex) {
+    const h = String(hex || '#2ee6a6').replace('#', '');
+    const full = h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h;
+    const n = parseInt(full, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  // Подсветка места: клетки красятся цветом самой фигуры — видно и форму, и куда именно она встанет
+  function previewPlacement(r0, c0, m, ok, color) {
     const size = BlockEngine.shapeSize(m);
+    const rgb = hexToRgb(color);
+    const alpha = ok ? 0.92 : 0.42;
     for (let r = 0; r < size.h; r++) {
       for (let c = 0; c < size.w; c++) {
         if (!m[r][c]) continue;
         const el = cellEl(r0 + r, c0 + c);
-        if (el) el.classList.add(ok ? 'preview-ok' : 'preview-bad');
+        if (!el) continue;
+        el.style.setProperty('--pv', ok ? (color || '#2ee6a6') : 'var(--bad)');
+        el.style.setProperty('--pv-bg', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + alpha + ')');
+        el.classList.add(ok ? 'preview-ok' : 'preview-bad');
       }
     }
   }
@@ -476,11 +509,14 @@
   /* ---- drag & drop ---- */
   function positionGhost(x, y) {
     if (!drag) return;
-    const gap = 3;
+    const gap = drag.ggap || 3;
     const ox = drag.grabC * (drag.gpc + gap) + drag.gpc / 2;
     const oy = drag.grabR * (drag.gpc + gap) + drag.gpc / 2;
+    // на тач-экране фигура «в руке» приподнята над пальцем — иначе палец закрывает
+    // и саму фигуру, и место, куда она встанет
+    const lift = drag.lift || 0;
     drag.ghost.style.left = (x - ox) + 'px';
-    drag.ghost.style.top = (y - oy) + 'px';
+    drag.ghost.style.top = (y - lift - oy) + 'px';
   }
 
   // Полная очистка перетаскивания. Вызывается при отпускании, отмене,
@@ -492,6 +528,8 @@
     if (drag && drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
     drag = null;
     clearPreview();
+    var b = document.getElementById('board');
+    if (b) b.classList.remove('drag-active');
     document.body.classList.remove('dragging');
     // подчищаем любые осиротевшие копии фигур
     $$('body > .drag-ghost').forEach(function (el) { el.remove(); });
@@ -513,7 +551,9 @@
     e.preventDefault();
     SFX.pickup();
     const size = BlockEngine.shapeSize(piece.m);
-    const gpc = ghostCellPx(Math.max(size.h, size.w));
+    const isTouch = e.pointerType === 'touch' || e.pointerType === 'pen';
+    const dm = dragMetrics(isTouch);
+    const gpc = dm.cell;
 
     const pieceEl = slot.querySelector('.piece') || slot;
     const rect = pieceEl.getBoundingClientRect();
@@ -524,12 +564,24 @@
     const grabC = Math.min(size.w - 1, Math.floor(fx * size.w));
     const grabR = Math.min(size.h - 1, Math.floor(fy * size.h));
 
-    const ghost = makePieceEl(piece.m, gpc, true, piece.color);
+    const ghost = makePieceEl(piece.m, gpc, true, piece.color, dm.gap);
+    ghost.style.setProperty('--dock', dm.dock.toFixed(3));
     document.body.appendChild(ghost);
     document.body.classList.add('dragging');
 
-    drag = { idx: idx, m: piece.m, ghost: ghost, gpc: gpc, grabR: grabR, grabC: grabC, target: null };
+    // На телефоне фигуру поднимаем над пальцем: так видно и форму, и место постановки.
+    const lift = isTouch ? Math.round(gpc * 1.6 + dm.gap * 2) : 0;
+
+    drag = { idx: idx, m: piece.m, color: piece.color, ghost: ghost, gpc: gpc, ggap: dm.gap, grabR: grabR, grabC: grabC, lift: lift, dock: dm.dock, target: null };
     positionGhost(e.clientX, e.clientY);
+
+    // «фигура выросла в руке»: стартует маленькой (как в лотке) и пружинно
+    // раздувается до размера клетки поля вокруг точки захвата
+    const ox = grabC * (gpc + dm.gap) + gpc / 2;
+    const oy = grabR * (gpc + dm.gap) + gpc / 2;
+    ghost.style.transformOrigin = ox + 'px ' + oy + 'px';
+    ghost.classList.add('pop');
+    setTimeout(function () { ghost.classList.remove('pop'); }, 320);
 
     window.addEventListener('pointermove', onDragMove, { passive: false });
     window.addEventListener('pointerup', onDragUp);
@@ -542,11 +594,21 @@
     positionGhost(e.clientX, e.clientY);
 
     clearPreview();
-    const cell = pointToCell(e.clientX, e.clientY);
-    if (!cell) { drag.target = null; return; }
+    const board = document.getElementById('board');
+    const cell = pointToCell(e.clientX, e.clientY - (drag.lift || 0));
+    if (!cell) {
+      drag.target = null;
+      if (drag.ghost) drag.ghost.classList.remove('over-target');
+      if (board) board.classList.remove('drag-active');
+      return;
+    }
+    if (board) board.classList.add('drag-active');
     const res = resolvePlacement(cell, drag.m, drag.grabR, drag.grabC);
+    const changed = !drag.target || drag.target.r0 !== res.r0 || drag.target.c0 !== res.c0 || drag.target.ok !== res.ok;
     drag.target = { r0: res.r0, c0: res.c0, ok: res.ok };
-    previewPlacement(res.r0, res.c0, drag.m, res.ok);
+    previewPlacement(res.r0, res.c0, drag.m, res.ok, drag.color);
+    if (changed) SFX.snap && SFX.snap();
+    if (drag.ghost) drag.ghost.classList.toggle('over-target', res.ok);
   }
 
   function onDragUp() {
@@ -609,6 +671,48 @@
     if (board) setTimeout(function () { board.classList.remove('flash'); }, 400);
   }
 
+  // Сейв от тупика сработал: вспышка по полю, бейдж «СЕЙВ!» над лотком и
+  // искры из лотка — чтобы подмена фигур не выглядела как случайный глюк.
+  function saveFx() {
+    SFX.save();
+    toast('СЕЙВ! Пачка пересдана — фигуры точно встанут', 'good');
+
+    const tray = document.getElementById('tray');
+    if (tray) {
+      const badge = document.createElement('div');
+      badge.className = 'save-badge';
+      badge.textContent = 'СЕЙВ!';
+      tray.appendChild(badge);
+
+      const fx = document.createElement('div');
+      fx.className = 'save-fx';
+      for (let i = 0; i < 18; i++) {
+        const p = document.createElement('i');
+        p.className = 'fx-particle';
+        const ang = -Math.PI + Math.random() * Math.PI; // вверх и в стороны
+        const dist = 50 + Math.random() * 90;
+        p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+        p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
+        p.style.setProperty('--pc', ['#2ee6a6', '#4cd6ff', '#ffe14d', '#ffffff'][i % 4]);
+        p.style.setProperty('--ps', (3 + Math.random() * 5).toFixed(1) + 'px');
+        p.style.setProperty('--pd', (0.45 + Math.random() * 0.45).toFixed(2) + 's');
+        fx.appendChild(p);
+      }
+      tray.appendChild(fx);
+      setTimeout(function () {
+        badge.remove();
+        fx.remove();
+      }, 1300);
+    }
+
+    const board = boardEl();
+    if (board) {
+      board.classList.remove('save-flash'); void board.offsetWidth;
+      board.classList.add('save-flash');
+      setTimeout(function () { board.classList.remove('save-flash'); }, 760);
+    }
+  }
+
   function floatText(r, c, text, color) {
     const wrap = document.querySelector('.board-wrap');
     const el = cellEl(r, c);
@@ -632,8 +736,10 @@
 
     const res = BlockEngine.place(game, idx, r0, c0);
     if (!res.ok) { renderTray(); return; }
+    // Сейв от тупика: новые фигуры выезжают по очереди, чтобы игрок заметил подмену
+    const deal = res.saved ? (res.replaced && res.replaced.length ? res.replaced.slice() : [0, 1, 2]) : null;
     renderBoard();
-    renderTray();
+    renderTray(deal);
     updateGameHud();
 
     // Анимация постановки + всплывающие очки
@@ -665,6 +771,8 @@
     } else {
       SFX.place();
     }
+
+    if (res.saved) saveFx();
 
     // Карточки копятся за забег и открываются ПОСЛЕ игры
     if (res.newCards && res.newCards.length) {
