@@ -9,7 +9,11 @@ const Store = (function () {
       coins: 150,
       scale3: true,
       cards: [],            // {uid, charId, rarity, buffs, rap, ts}
-      invites: 0,
+      invites: 0,           // устаревшее поле (бонус выдавался сразу — баг)
+      invitesConfirmed: 0,  // друзья, реально зашедшие по ссылке
+      refCode: '',          // мой код приглашения
+      refClaimedBy: '',     // чей код уже принял этот игрок
+      invitesMigrated: true,
       notifications: [],    // {id, text, type, ts, read}
       history: [],          // {ts, score, cards}
       stats: { games: 0, bestScore: 0, totalScore: 0, cardsFound: 0, bestCombo: 0, totalLines: 0 },
@@ -50,6 +54,18 @@ const Store = (function () {
         merged.scale3 = true;
         try { save(merged); } catch (e) { }
       }
+      // v0.3: раньше бонус за «друзей» начислялся сразу по нажатию кнопки (баг),
+      // поэтому старые начисления обнуляем — теперь считаются только те друзья,
+      // которые реально открыли игру по ссылке.
+      if (!merged.invitesMigrated) {
+        merged.invites = 0;
+        merged.invitesConfirmed = 0;
+        merged.invitesMigrated = true;
+        try { save(merged); } catch (e) { }
+      }
+      if (typeof merged.invitesConfirmed !== 'number') merged.invitesConfirmed = 0;
+      if (typeof merged.refCode !== 'string') merged.refCode = '';
+      if (typeof merged.refClaimedBy !== 'string') merged.refClaimedBy = '';
       return merged;
     } catch (e) {
       return newProfile();

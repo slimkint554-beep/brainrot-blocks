@@ -80,8 +80,24 @@ const BlockEngine = (function () {
     return state.tray.some(p => p && anyPlacement(state.grid, p.m));
   }
 
+  function pickColor() { return PIECE_COLORS[Math.floor(Math.random() * PIECE_COLORS.length)]; }
+
+  // Каждая фигура в лотке гарантированно может быть поставлена на текущее поле
   function refillTray(state) {
-    state.tray = [randomPiece(), randomPiece(), randomPiece()];
+    state.tray = [
+      randomPlaceablePiece(state.grid),
+      randomPlaceablePiece(state.grid),
+      randomPlaceablePiece(state.grid),
+    ];
+  }
+
+  // «Беспроигрышная» пачка: только мелкие фигуры — их можно поставить почти на любое поле
+  function safePack(state) {
+    const shapes = [[[1]], [[1, 1]], [[1], [1]]];
+    state.tray = shapes.map(function (m) {
+      const piece = { m: m.map(function (r) { return r.slice(); }), color: pickColor() };
+      return anyPlacement(state.grid, piece.m) ? piece : randomPlaceablePiece(state.grid);
+    });
   }
 
   function newGame(invites) {
@@ -225,11 +241,14 @@ const BlockEngine = (function () {
     return null;
   }
 
-  function revive(state) {
+  // opts.easy (возрождение за рекламу) — чистим больше клеток и даём мелкую пачку
+  function revive(state, opts) {
     const N = CONFIG.GRID;
+    const easy = !!(opts && opts.easy);
     const filled = [];
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (state.grid[r][c]) filled.push([r, c]);
-    for (let i = 0; i < Math.min(10, filled.length); i++) {
+    const wipeCount = Math.min(easy ? 16 : 10, filled.length);
+    for (let i = 0; i < wipeCount; i++) {
       const idx = Math.floor(Math.random() * filled.length);
       const cell = filled.splice(idx, 1)[0];
       state.grid[cell[0]][cell[1]] = 0;
@@ -238,13 +257,13 @@ const BlockEngine = (function () {
     state.combo = 0;
     state.batchClears = 0;
     state.tray = [null, null, null];
-    refillTray(state);
+    if (easy) safePack(state); else refillTray(state);
     let g = 0;
     while (!hasMoves(state) && g++ < 30) refillTray(state);
     return true;
   }
 
-  return { newGame, place, shuffleTray, hint, hasMoves, refillTray, revive, canPlace, shapeSize, shapeCells, SHAPES, N };
+  return { newGame, place, shuffleTray, hint, hasMoves, refillTray, safePack, revive, canPlace, shapeSize, shapeCells, SHAPES, N };
 })();
 
 /* ============================================================

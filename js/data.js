@@ -7,13 +7,13 @@ const CONFIG = {
   GRID: 8,
   // Карточки
   CARD_ROLL_STEP: 200,      // каждые 200 очков — попытка получить карточку
-  BASE_CARD_CHANCE: 0.15,   // базовый шанс карточки (снижен, чтобы карточек было меньше)
-  INVITE_BONUS: 0.08,       // +8% к шансу за каждого приглашённого друга
+  BASE_CARD_CHANCE: 0.15,   // базовый шанс карточки
+  INVITE_BONUS: 0.05,       // +5% к шансу за каждого ПОДТВЕРДИВШЕГОСЯ друга (макс 5 друзей = 25%)
   PITY_ROLLS: 8,            // гарантированная карточка после N неудачных попыток
-  BUFF_CHANCE: 0.20,        // шанс, что у карточки есть косметический бафф
-  BUFF_STACK_CHANCE: 0.15,  // шанс, что добавится ЕЩЁ один бафф (стакинг)
-  MAX_BUFFS: 4,
-  MAX_INVITES: 12,
+  BUFF_CHANCE: 0.30,        // шанс, что у карточки есть косметический бафф
+  BUFF_STACK_CHANCE: 0.35,  // шанс, что добавится ЕЩЁ один бафф (стакинг)
+  MAX_BUFFS: 8,             // максимум эффектов на одной карточке
+  MAX_INVITES: 5,           // максимум друзей (5 × 5% = 25%)
   LOOKSMAX_CHANCE: 0.07,   // шанс, что карта — из доп-коллекции Looksmax (повышенная редкость)
   SAVE_KEY: 'brainrotblocks_v1',
   CELL_POINTS: 5,
@@ -85,17 +85,17 @@ const CASES = [
 
 /* ---------- Апгрейд карточек (по RAP, честный рандом) ---------- */
 const UPGRADE = {
-  maxLevel: 10,
-  rapStep: 0.30,          // +30% RAP за уровень
+  maxLevel: 25,           // было 10 — теперь качаем карточку сильно выше
+  rapStep: 0.35,          // +35% RAP за уровень
   baseCost: { common: 150, uncommon: 400, rare: 1000, epic: 2500, legendary: 6000, unusual: 15000 },
-  costStep: 0.6,          // цена растёт на 60% за уровень
-  baseChance: 0.85,       // шанс на 0-м уровне
-  chanceDecay: 0.70,      // каждый уровень шанс слабее
-  minChance: 0.12,
-  rapCap: 1000000,        // базовая максимальная награда из колеса (RAP)
-  maxStake: 200000,       // максимальная ставка (защита от абуза апгрейдов)
-  specialChance: 0.10,    // шанс, что выигрыш будет с особым эффектом (баффом)
-  specialStackChance: 0.25, // шанс, что добавится ещё один эффект (стакинг)
+  costStep: 0.5,          // цена растёт на 50% за уровень (мягче, чтобы длинная прокачка была реальной)
+  baseChance: 0.90,       // шанс на 0-м уровне
+  chanceDecay: 0.84,      // каждый уровень шанс слабее (но заметно мягче прежнего)
+  minChance: 0.10,
+  rapCap: 50000000,       // максимальная награда из колеса (RAP)
+  maxStake: 5000000,      // максимальная ставка
+  specialChance: 0.18,    // шанс, что выигрыш будет с особым эффектом (баффом)
+  specialStackChance: 0.40, // шанс, что добавится ещё один эффект (стакинг)
 };
 
 /* ---------- Колесо апгрейдов (меньше шанс — лучше дроп) ---------- */
@@ -132,6 +132,24 @@ const BUFFS = [
   { id: 'sugar',   name: 'Sugar',   desc: 'Сахарный буст: сладкие комбо и быстрый рост',        rapMult: 1.28 },
   { id: 'static',  name: 'Static',  desc: 'Помехи сбивают соперников и дают микро-бонус',       rapMult: 1.12 },
   { id: 'glitch',  name: 'Glitch',  desc: 'Глюк ломает правила и выдаёт максимум репутации',    rapMult: 2.00 },
+  // ---- новые эффекты (v0.3): ещё больше вайба ----
+  { id: 'firework',name: 'Firework',desc: 'Фейерверк: каждый ход взрывается очками',            rapMult: 1.42 },
+  { id: 'honey',   name: 'Honey',   desc: 'Медовая липкость: блоки притягиваются друг к другу', rapMult: 1.26 },
+  { id: 'chrome',  name: 'Chrome',  desc: 'Хромированное сияние отражает чужие награды',        rapMult: 1.48 },
+  { id: 'matrix',  name: 'Matrix',  desc: 'Цифровой дождь переписывает полоски в свою пользу',  rapMult: 1.62 },
+  { id: 'aurora',  name: 'Aurora',  desc: 'Северное сияние над полем — карма чистая',           rapMult: 1.38 },
+  { id: 'magnet',  name: 'Magnet',  desc: 'Магнит стягивает линии в идеальный порядок',         rapMult: 1.33 },
+  { id: 'neon2',   name: 'Ultraneon',desc:'Двойной неон: светится даже в темноте',              rapMult: 1.44 },
+  { id: 'prism',   name: 'Prism',   desc: 'Призма дробит очки на все цвета радуги',             rapMult: 1.52 },
+  { id: 'cyber',   name: 'Cyber',   desc: 'Кибер-имплант ускоряет рост репутации',              rapMult: 1.58 },
+  { id: 'slime',   name: 'Slime',   desc: 'Слайм растекается и склеивает линии',                rapMult: 1.24 },
+  { id: 'phantom', name: 'Phantom', desc: 'Фантом проходит сквозь блоки и крадёт очки',         rapMult: 1.66 },
+  { id: 'galaxy',  name: 'Galaxy',  desc: 'Галактика внутри карточки — гравитация на твоей стороне', rapMult: 1.72 },
+  { id: 'acid',    name: 'Acid',    desc: 'Кислота разъедает серые блоки',                      rapMult: 1.36 },
+  { id: 'royal',   name: 'Royal',   desc: 'Королевская печать: всё дороже и пафоснее',          rapMult: 1.55 },
+  { id: 'bubblegum',name:'Bubblegum',desc:'Жвачка тянет комбо дальше обычного',                 rapMult: 1.30 },
+  { id: 'obsidian',name: 'Obsidian',desc: 'Обсидиан: чёрный, острый и очень дорогой',           rapMult: 1.68 },
+  { id: 'zenith',  name: 'Zenith',  desc: 'Зенит: пик формы, максимальная отдача',              rapMult: 1.90 },
 ];
 
 const BUFF_BY_ID = Object.fromEntries(BUFFS.map(b => [b.id, b]));
@@ -158,6 +176,24 @@ const BUFF_FX = {
   sugar:   { c: '#ffb8e0', fx: 'bubble' },
   static:  { c: '#cfd6e0', fx: 'glitch' },
   glitch:  { c: '#00ffbf', fx: 'glitch' },
+  // ---- новые (v0.3) ----
+  firework:{ c: '#ff6b3d', fx: 'spark' },
+  honey:   { c: '#ffc93d', fx: 'shimmer' },
+  chrome:  { c: '#dfe9f5', fx: 'shine' },
+  matrix:  { c: '#2bff88', fx: 'neon' },
+  aurora:  { c: '#63ffd0', fx: 'hue' },
+  magnet:  { c: '#ff4d6d', fx: 'pulse' },
+  neon2:   { c: '#7cff2b', fx: 'neon' },
+  prism:   { c: '#9ad4ff', fx: 'hue' },
+  cyber:   { c: '#00e0ff', fx: 'glitch' },
+  slime:   { c: '#8dff5c', fx: 'bubble' },
+  phantom: { c: '#b9a4ff', fx: 'smoke' },
+  galaxy:  { c: '#a77bff', fx: 'void' },
+  acid:    { c: '#d0ff2b', fx: 'bubble' },
+  royal:   { c: '#ffd700', fx: 'shimmer' },
+  bubblegum:{c: '#ff8ad4', fx: 'bubble' },
+  obsidian:{ c: '#6b6b8a', fx: 'smoke' },
+  zenith:  { c: '#ffe36b', fx: 'pulse' },
 };
 
 /* ---------- Brainrot-персонажи по редкостям (44) ---------- */
@@ -259,6 +295,56 @@ const BRAINROTS = [
   // Rarest — 2
   { id: 'rarest-prime',        name: 'Прайм-Редкость',     rarity: 'unusual', emoji: '💎', desc: 'Существует в одном экземпляре во вселенной', tag: 'rarest' },
   { id: 'rarest-zero',         name: 'Нулевая Редкость',   rarity: 'unusual', emoji: '🌟', desc: 'Шанс настолько мал, что это уже легенда', tag: 'rarest' },
+
+  /* ================= v0.3: ещё больше брейнротов ================= */
+  // common — новые
+  { id: 'suharik-veteran',     name: 'Сухарик-Ветеран',    rarity: 'common', emoji: '🥖', desc: 'Воевал с чаем и вышел сухим из воды' },
+  { id: 'tapok-begun',         name: 'Тапок-Бегун',        rarity: 'common', emoji: '🏃', desc: 'Убегает от носков уже десять лет' },
+  { id: 'shipuchka-tok',       name: 'Шипучка-Ток',        rarity: 'common', emoji: '🥤', desc: 'Шипит громче, чем твой начальник' },
+  { id: 'sosiska-turist',      name: 'Сосиска-Турист',     rarity: 'common', emoji: '🌭', desc: 'Объездил все шашлыки района' },
+  { id: 'moloko-kosmicheskoe', name: 'Молоко Космическое', rarity: 'common', emoji: '🥛', desc: 'Убежало дальше, чем планировало' },
+  { id: 'kartoshka-fri',       name: 'Картошка-Фри',       rarity: 'common', emoji: '🍟', desc: 'Солёная, хрустящая и немного уставшая' },
+  { id: 'myshka-setevaya',     name: 'Мышка-Сетевая',      rarity: 'common', emoji: '🖱️', desc: 'Кликает быстрее, чем ты думаешь' },
+  { id: 'nemytaya-kruzhka',    name: 'Немытая Кружка',     rarity: 'common', emoji: '☕', desc: 'На дне живёт новая цивилизация' },
+  { id: 'vata-sladkaya',       name: 'Ватная Сладость',    rarity: 'common', emoji: '🍬', desc: 'Липнет ко всему, кроме обещаний' },
+  { id: 'goroh-telepat',       name: 'Горох-Телепат',      rarity: 'common', emoji: '🟢', desc: 'Знает, что ты собирался приготовить его' },
+  // uncommon — новые
+  { id: 'pelmeniy-mladshiy',   name: 'Пельмений Младший',  rarity: 'uncommon', emoji: '🍽️', desc: 'Наследник престола, но пока в морозилке' },
+  { id: 'syrnyy-monah',        name: 'Сырный Монах',       rarity: 'uncommon', emoji: '🧀', desc: 'Молится на плесень и пост' },
+  { id: 'chipsy-bos',          name: 'Чипсы-Босс',         rarity: 'uncommon', emoji: '🥔', desc: 'Только одна пачка — и весь отдел твой' },
+  { id: 'kuritsa-elektro',     name: 'Курица-Электро',     rarity: 'uncommon', emoji: '🍗', desc: 'Заярил себя сама, без сковороды' },
+  { id: 'baget-mudrets',       name: 'Багет-Мудрец',       rarity: 'uncommon', emoji: '🥖', desc: 'Чёрствый снаружи, добрый внутри' },
+  { id: 'sok-i-zhmyh',         name: 'Сок и Жмых',         rarity: 'uncommon', emoji: '🧃', desc: 'Две сущности в одной упаковке' },
+  { id: 'kefir-buntar',        name: 'Кефир-Бунтарь',      rarity: 'uncommon', emoji: '🥛', desc: 'Бродит против системы' },
+  { id: 'ponchik-soldat',      name: 'Пончик-Солдат',      rarity: 'uncommon', emoji: '🍩', desc: 'Липкий снаружи, стратег внутри' },
+  // rare — новые
+  { id: 'shaverma-vulkan',     name: 'Шаверма-Вулкан',     rarity: 'rare', emoji: '🌋', desc: 'Чесночный соус выходит на поверхность' },
+  { id: 'borshch-titan',       name: 'Борщ-Титан',         rarity: 'rare', emoji: '🍲', desc: 'Варится со времён основания деревни' },
+  { id: 'kvas-vek',            name: 'Квас-Век',           rarity: 'rare', emoji: '🍺', desc: 'Древний напиток с живым характером' },
+  { id: 'holodets-hunter',     name: 'Холодец-Охотник',    rarity: 'rare', emoji: '🍖', desc: 'Застывает прямо в момент атаки' },
+  { id: 'tvorozhok-yoga',      name: 'Творожок-Йога',      rarity: 'rare', emoji: '🧘', desc: 'Просветлел, но остался творожком' },
+  { id: 'kaban-chill',         name: 'Кабан-Чилл',         rarity: 'rare', emoji: '🐗', desc: 'Двигается медленно, но уверенно' },
+  { id: 'goose-gang',          name: 'Гусь-Гэнг',          rarity: 'rare', emoji: '🪿', desc: 'Ходит не один — он с вайбом' },
+  { id: 'soska-chempion',      name: 'Сосиска-Чемпион',    rarity: 'rare', emoji: '🏆', desc: 'Победила в забеге по кипятку' },
+  // epic — новые
+  { id: 'gigapelmen-omega',    name: 'Гигапельмень-Омега', rarity: 'epic', emoji: '🥟', desc: 'Финал эволюции теста и фарша' },
+  { id: 'kondensator-zhizni',  name: 'Конденсатор Жизни',  rarity: 'epic', emoji: '🔋', desc: 'Копит энергию с 2019 года' },
+  { id: 'servernyy-god',       name: 'Серверный Бог',      rarity: 'epic', emoji: '🖥️', desc: 'Никогда не падает, кроме среды' },
+  { id: 'manometr-dushi',      name: 'Манометр Души',      rarity: 'epic', emoji: '📈', desc: 'Показывает давление мемов в крови' },
+  { id: 'farsh-9000',          name: 'Фарш-9000',          rarity: 'epic', emoji: '🥩', desc: 'Перемалывает всё: котлеты и мнения' },
+  { id: 'kholodilnyy-bog',     name: 'Холодильный Бог',    rarity: 'epic', emoji: '🧊', desc: 'Придёт за твоей колбасой в час ночи' },
+  // legendary — новые
+  { id: 'vlastelin-cheburek',  name: 'Властелин Чебурек',  rarity: 'legendary', emoji: '🥟', desc: 'Один укус — и ты его должник' },
+  { id: 'drevniy-borshchevar', name: 'Древний Борщевар',   rarity: 'legendary', emoji: '🍲', desc: 'Варит борщ на звёздном огне' },
+  { id: 'imperator-shaurmy',   name: 'Император Шаурмы',   rarity: 'legendary', emoji: '👑', desc: 'Соус течёт по его венам' },
+  { id: 'povelitel-holodtsa',  name: 'Повелитель Холодца', rarity: 'legendary', emoji: '🍖', desc: 'Заставляет дрожать даже желатин' },
+  // unusual — новые
+  { id: 'nulevoy-klient',      name: 'Нулевой Клиент',     rarity: 'unusual', emoji: '🚪', desc: 'Заходит и не заходит. Классика' },
+  { id: 'vechnyy-ping',        name: 'Вечный Пинг',        rarity: 'unusual', emoji: '📶', desc: 'Отвечает через две эпохи' },
+  { id: 'arhiv-vselennoy',     name: 'Архив Вселенной',    rarity: 'unusual', emoji: '🗄️', desc: 'Хранит все удалённые мемы' },
+  { id: 'posledniy-soevyy',    name: 'Последний Соевый',   rarity: 'unusual', emoji: '🌱', desc: 'Единственный, кто остался после соуса' },
+  { id: 'pereklyuchenie',      name: 'Переключение',       rarity: 'unusual', emoji: '🔀', desc: 'Ты уже не помнишь, зачем сюда зашёл' },
+  { id: 'tishe-tishe',         name: 'Тише-Тише',          rarity: 'unusual', emoji: '🤏', desc: 'Настолько тихо, что слышно интернет' },
 ];
 
 const BRAINROT_BY_ID = Object.fromEntries(BRAINROTS.map(b => [b.id, b]));

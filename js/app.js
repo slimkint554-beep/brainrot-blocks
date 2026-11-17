@@ -137,6 +137,7 @@
 
   /* ---------------- навигация ---------------- */
   function show(id) {
+    if (drag) cancelDrag();          // убираем остатки перетаскивания при смене экрана
     $$('.screen').forEach(s => s.classList.remove('active'));
     const el = document.getElementById('screen-' + id);
     if (el) el.classList.add('active');
@@ -275,7 +276,7 @@
     runFinalized = false;
     lastScoreShown = -1;
     closeModal();
-    game = BlockEngine.newGame(profile.invites);
+    game = BlockEngine.newGame(confirmedInvites());
     show('game');
     renderBoard();
     renderTray();
@@ -392,7 +393,7 @@
     $('#game-coins').textContent = fmt(profile.coins);
     const into = game.score % CONFIG.CARD_ROLL_STEP;
     $('#card-progress-fill').style.width = (into / CONFIG.CARD_ROLL_STEP * 100) + '%';
-    const chance = Math.round(Math.min(1, CONFIG.BASE_CARD_CHANCE + profile.invites * CONFIG.INVITE_BONUS) * 100);
+    const chance = cardChancePct();
     $('#card-progress-text').textContent = 'До карточки: ' + (CONFIG.CARD_ROLL_STEP - into) + ' очков · шанс ' + chance + '%';
   }
 
@@ -482,8 +483,26 @@
     drag.ghost.style.top = (y - oy) + 'px';
   }
 
+  // Полная очистка перетаскивания. Вызывается при отпускании, отмене,
+  // смене экрана и потере фокуса — чтобы «призраки» фигур не налипали на экран.
+  function cancelDrag() {
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragUp);
+    window.removeEventListener('pointercancel', onDragUp);
+    if (drag && drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    drag = null;
+    clearPreview();
+    document.body.classList.remove('dragging');
+    // подчищаем любые осиротевшие копии фигур
+    $$('body > .drag-ghost').forEach(function (el) { el.remove(); });
+  }
+  window.addEventListener('blur', cancelDrag);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) cancelDrag(); });
+
   function onPiecePointerDown(e) {
     if (!game) return;
+    // если предыдущее перетаскивание не завершилось — убираем его остатки
+    if (drag) cancelDrag();
     // хватаем за всю ячейку лотка, а не только за сами блоки
     const slot = e.target.closest('.pieceslot');
     if (!slot || slot.classList.contains('used')) return;
@@ -531,17 +550,10 @@
   }
 
   function onDragUp() {
-    if (!drag) return;
-    window.removeEventListener('pointermove', onDragMove);
-    window.removeEventListener('pointerup', onDragUp);
-    window.removeEventListener('pointercancel', onDragUp);
-    const g = drag.ghost;
-    if (g) g.remove();
-    clearPreview();
+    if (!drag) { cancelDrag(); return; }
     const target = drag.target;
     const idx = drag.idx;
-    drag = null;
-    document.body.classList.remove('dragging');
+    cancelDrag();
     if (target && target.ok) doPlace(idx, target.r0, target.c0);
     else if (target) SFX.invalid();
   }
@@ -719,6 +731,34 @@
     return s;
   }
 
+  // «Безумный» праздник при редком дропе: конфетти + вспышка экрана
+  function celebrateDrop(rar) {
+    const order = (rar && rar.order) || 0;
+    if (order < 1) return;
+    if (order >= 3) {
+      const fl = document.createElement('div');
+      fl.className = 'screen-flash';
+      document.body.appendChild(fl);
+      setTimeout(function () { fl.remove(); }, 620);
+    }
+    const palette = ['#ff2e88', '#ffd166', '#39d98a', '#3b9dff', '#b06bff', '#00ffbf', '#ffffff'];
+    const count = 8 + order * 12;
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (5 + Math.random() * 90) + 'vw';
+      c.style.top = (-40 - Math.random() * 60) + 'px';
+      c.style.background = palette[i % palette.length];
+      c.style.width = (6 + Math.random() * 8).toFixed(0) + 'px';
+      c.style.height = (10 + Math.random() * 12).toFixed(0) + 'px';
+      c.style.setProperty('--dx', (Math.random() * 260 - 130).toFixed(0) + 'px');
+      c.style.setProperty('--rot', (Math.random() * 900 - 450).toFixed(0) + 'deg');
+      c.style.animationDelay = (Math.random() * 0.28).toFixed(2) + 's';
+      document.body.appendChild(c);
+      (function (el) { setTimeout(function () { el.remove(); }, 2200); })(c);
+    }
+  }
+
   function cardHTML(card) {
     const rar = rarityById(card.rarity);
     const ch = brainrotById(card.charId);
@@ -798,7 +838,7 @@
       { cls: 'reveal-modal' }
     );
     const root = $('#modal-root');
-    if (opts.celebrate) SFX.rarity(rar.order);
+    if (opts.celebrate) { SFX.rarity(rar.order); celebrateDrop(rar); }
     root.querySelector('#reveal-ok').onclick = function () { onClose && onClose(); };
     const sellEl = root.querySelector('#reveal-sell');
     if (sellEl) sellEl.onclick = function () {
@@ -1047,7 +1087,7 @@
   let spinning = false;
   let upStakeUid = null;
   let upChance = null;
-  const UP_CHANCES = [0.75, 0.55, 0.35, 0.15];
+  const UP_CHANCES = [0.85, 0.70, 0.55, 0.40, 0.28, 0.18, 0.10, 0.05];
 
   function nearestRarity(rap) {
     let best = RARITIES[0], bd = Infinity;
@@ -1280,13 +1320,14 @@ profile.cards.push(won);
       closeModal();
       showRewardedAd(function (ok) {
         if (!ok) { toast('Реклама недоступна'); return; }
-        BlockEngine.revive(game);
+        // после рекламы — «беспроигрышная» пачка: чистка поля + только мелкие фигуры
+        BlockEngine.revive(game, { easy: true });
         endShown = false;
         renderBoard();
         renderTray();
         updateGameHud();
-        SFX.rarity(2);
-        toast('Продолжаем!', 'good');
+        SFX.rarity(3);
+        toast('Возрождение! Пачка точно влезет 🔥', 'good');
       });
     };
     root.querySelector('#go-again').onclick = function () { finalizeRun(); closeModal(); startGame(); };
@@ -1409,7 +1450,8 @@ profile.cards.push(won);
   function craft(rarityId) {
     const rar = rarityById(rarityId);
     const next = RARITIES.find(function (r) { return r.order === rar.order + 1; });
-    if (!next) { toast('Это максимальная редкость'); return; }
+    const isTop = !next && rar.order === RARITIES.length - 1;   // Unusual → Rarest
+    if (!next && !isTop) { toast('Это максимальная редкость'); return; }
     const pool = profile.cards.filter(function (c) { return c.rarity === rarityId && !isSpecial(c); });
     if (pool.length < 3) { toast('Нужно 3 карточки'); return; }
     pool.sort(function (a, b) { return a.rap - b.rap; });
@@ -1428,16 +1470,33 @@ profile.cards.push(won);
     let extra = 0;
     if (roll < 0.02) extra = 3; else if (roll < 0.07) extra = 2; else if (roll < 0.17) extra = 1;
     let guard = 0;
-    while (extra > 0 && buffs.length < 6 && guard++ < 30) {
+    while (extra > 0 && buffs.length < CONFIG.MAX_BUFFS && guard++ < 30) {
       const b = BUFFS[Math.floor(Math.random() * BUFFS.length)].id;
       if (!buffs.includes(b)) { buffs.push(b); extra--; }
     }
 
-    const card = makeCardWithBuffs(next.id, buffs);
+    let card;
+    if (next) {
+      card = makeCardWithBuffs(next.id, buffs);
+    } else {
+      // верхняя редкость (Unusual) → карточка из самой редкой коллекции Rarest
+      const rarestPool = brainrotsByTag('rarest');
+      const ch = rarestPool[Math.floor(Math.random() * rarestPool.length)];
+      const mult = buffs.reduce(function (m, id) { return m * (buffById(id) ? buffById(id).rapMult : 1); }, 1);
+      const baseRap = Math.max(
+        Math.round(rarityById('unusual').rap * 4),
+        consume.reduce(function (s, c) { return s + (c.rap || 0); }, 0)
+      );
+      card = {
+        uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        charId: ch.id, rarity: 'unusual', buffs: buffs.slice(), up: 0,
+        rap: Math.round(baseRap * mult), ts: Date.now()
+      };
+    }
     profile.cards.push(card);
     save();
-    SFX.rarity(next.order);
-    toast('Крафт: ' + next.name + (buffs.length ? ' · эффектов ' + buffs.length : '') + '!', 'good');
+    SFX.rarity(next ? next.order : 6);
+    toast('Крафт: ' + (next ? next.name : 'Rarest') + (buffs.length ? ' · эффектов ' + buffs.length : '') + '!', 'good');
     renderCollection();
     openCardDetail(card.uid, true);
   }
@@ -1481,7 +1540,7 @@ profile.cards.push(won);
 
   function renderCraftScreen() {
     const countEl = $('#craft-count'); if (countEl) countEl.textContent = profile.cards.length;
-    const rarities = RARITIES.filter(function (r) { return r.order < RARITIES.length - 1; });
+    const rarities = RARITIES.slice();   // теперь можно крафтить и Unusual → Rarest
     if (!craftRarity || !rarities.some(function (r) { return r.id === craftRarity; })) {
       const withEnough = rarities.find(function (r) { return countNonSpecial(r.id) >= 3; });
       craftRarity = (withEnough || rarities[0]).id;
@@ -1490,7 +1549,10 @@ profile.cards.push(won);
     const chips = $('#craft-rarities');
     if (chips) {
       chips.innerHTML = rarities.map(function (r) {
-        return '<button class="chip ' + (craftRarity === r.id ? 'active' : '') + '" data-crar="' + r.id + '">' + r.name + ' <b>' + countNonSpecial(r.id) + '</b></button>';
+        const nxt = RARITIES.find(function (x) { return x.order === r.order + 1; });
+        const arrow = ' → ' + (nxt ? nxt.short : 'Rarest');
+        return '<button class="chip ' + (craftRarity === r.id ? 'active' : '') + '" data-crar="' + r.id + '">' +
+          r.name + ' <b>' + countNonSpecial(r.id) + '</b><small>' + arrow + '</small></button>';
       }).join('');
       $$('#craft-rarities .chip').forEach(function (b) {
         b.onclick = function () { craftRarity = b.dataset.crar; craftSel = []; renderCraftScreen(); };
@@ -1537,19 +1599,18 @@ profile.cards.push(won);
       slots.innerHTML = html;
     }
 
-    const next = RARITIES.find(function (r) { return r.order === rarityById(craftRarity).order + 1; });
+    const nextRar = RARITIES.find(function (r) { return r.order === rarityById(craftRarity).order + 1; });
     const resEl = $('#craft-result');
     if (resEl) {
-      if (!next) { resEl.innerHTML = ''; }
-      else {
-        const selCards = craftSel.map(function (uid) { return profile.cards.find(function (x) { return x.uid === uid; }); }).filter(Boolean);
-        const buffs = [];
-        selCards.forEach(function (c) { (c.buffs || []).forEach(function (b) { if (buffs.indexOf(b) < 0) buffs.push(b); }); });
-        const chipsHtml = buffs.map(function (b) { return '<span class="buffchip">' + b + '</span>'; }).join('');
-        resEl.innerHTML = '<div class="cres">Результат: <b style="color:' + next.color + '">' + next.name + '</b>' +
-          '<div class="cres-buffs">' + (buffs.length ? 'Унаследует эффекты: ' + chipsHtml : 'Эффектов пока нет — выберите карточки с баффами') + '</div>' +
-          '<div class="cres-note">+ шанс доп. эффектов: 10% → +1, 5% → +2, 2% → +3</div></div>';
-      }
+      const selCards = craftSel.map(function (uid) { return profile.cards.find(function (x) { return x.uid === uid; }); }).filter(Boolean);
+      const buffs = [];
+      selCards.forEach(function (c) { (c.buffs || []).forEach(function (b) { if (buffs.indexOf(b) < 0) buffs.push(b); }); });
+      const chipsHtml = buffs.map(function (b) { return '<span class="buffchip">' + b + '</span>'; }).join('');
+      const targetName = nextRar ? nextRar.name : 'Rarest';
+      const targetColor = nextRar ? nextRar.color : '#ffffff';
+      resEl.innerHTML = '<div class="cres">Результат: <b style="color:' + targetColor + '">' + targetName + '</b>' +
+        '<div class="cres-buffs">' + (buffs.length ? 'Унаследует эффекты: ' + chipsHtml : 'Эффектов пока нет — выберите карточки с баффами') + '</div>' +
+        '<div class="cres-note">+ шанс доп. эффектов: 10% → +1, 5% → +2, 2% → +3</div></div>';
     }
 
     const btn = $('#btn-craft');
@@ -1560,8 +1621,10 @@ profile.cards.push(won);
 
   function doCraft() {
     if (craftSel.length !== 3) return;
-    const next = RARITIES.find(function (r) { return r.order === rarityById(craftRarity).order + 1; });
-    if (!next) { toast('Это максимальная редкость'); return; }
+    const cur = rarityById(craftRarity);
+    const next = RARITIES.find(function (r) { return r.order === cur.order + 1; });
+    const isTop = !next && cur.order === RARITIES.length - 1;
+    if (!next && !isTop) { toast('Это максимальная редкость'); return; }
     const consume = craftSel.map(function (uid) { return profile.cards.find(function (c) { return c.uid === uid; }); }).filter(Boolean);
     if (consume.length !== 3) return;
     const consumeSet = {};
@@ -1574,15 +1637,31 @@ profile.cards.push(won);
     let extra = 0;
     if (roll < 0.02) extra = 3; else if (roll < 0.07) extra = 2; else if (roll < 0.17) extra = 1;
     let guard = 0;
-    while (extra > 0 && buffs.length < 6 && guard++ < 30) {
+    while (extra > 0 && buffs.length < CONFIG.MAX_BUFFS && guard++ < 30) {
       const b = BUFFS[Math.floor(Math.random() * BUFFS.length)].id;
       if (buffs.indexOf(b) < 0) { buffs.push(b); extra--; }
     }
-    const card = makeCardWithBuffs(next.id, buffs);
+    let card;
+    if (next) {
+      card = makeCardWithBuffs(next.id, buffs);
+    } else {
+      const rarestPool = brainrotsByTag('rarest');
+      const ch = rarestPool[Math.floor(Math.random() * rarestPool.length)];
+      const mult = buffs.reduce(function (m, id) { return m * (buffById(id) ? buffById(id).rapMult : 1); }, 1);
+      const baseRap = Math.max(
+        Math.round(rarityById('unusual').rap * 4),
+        consume.reduce(function (s, c) { return s + (c.rap || 0); }, 0)
+      );
+      card = {
+        uid: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        charId: ch.id, rarity: 'unusual', buffs: buffs.slice(), up: 0,
+        rap: Math.round(baseRap * mult), ts: Date.now()
+      };
+    }
     profile.cards.push(card);
     save();
-    SFX.rarity(next.order);
-    toast('Крафт: ' + next.name + (buffs.length ? ' · эффектов ' + buffs.length : '') + '!', 'good');
+    SFX.rarity(next ? next.order : 6);
+    toast('Крафт: ' + (next ? next.name : 'Rarest') + (buffs.length ? ' · эффектов ' + buffs.length : '') + '!', 'good');
     craftSel = [];
     renderCraftScreen();
     showCardReveal(card, closeModal, { celebrate: true, sell: true });
@@ -1606,7 +1685,7 @@ profile.cards.push(won);
           ? '<div class="up-row"><span>Шанс успеха</span><b class="up-chance">' + chance + '%</b></div>' +
             '<div class="up-row"><span>Стоимость</span><b>' + fmt(cost) + ' 🪙</b></div>' +
             '<button class="btn btn-primary btn-block" id="detail-up">Улучшить · ' + chance + '% · ' + fmt(cost) + ' 🪙</button>'
-          : '<div class="up-row"><span>Максимум</span><b>+10</b></div>') +
+          : '<div class="up-row"><span>Максимум</span><b>+' + UPGRADE.maxLevel + '</b></div>') +
       '</div>';
     openModal(
       '<div class="detail">' +
@@ -1701,34 +1780,140 @@ profile.cards.push(won);
     Online.submit({ entries: entries });
   }
 
-  /* ---------------- INVITE ---------------- */
-  function renderInvite() {
-    $('#invite-count').textContent = profile.invites;
-    $('#invite-bonus').textContent = '+' + (profile.invites * Math.round(CONFIG.INVITE_BONUS * 100)) + '% к шансу карточки';
-    const btn = $('#btn-invite');
-    if (profile.invites >= CONFIG.MAX_INVITES) {
-      btn.disabled = true; btn.textContent = 'Максимум друзей';
-    } else {
-      btn.disabled = false; btn.textContent = 'Пригласить друга';
+  /* ---------------- INVITE / ДРУЗЬЯ ----------------
+     Бонус даётся только за друзей, которые РЕАЛЬНО зашли по ссылке:
+     приглашающий делится ссылкой ?ref=КОД, друг открывает игру — сервер
+     фиксирует переход, и только после этого к шансу карточки добавляется +5%. */
+  const REF_APP_ID = 54902095;
+
+  function confirmedInvites() { return Math.min(CONFIG.MAX_INVITES, profile.invitesConfirmed || 0); }
+  function cardChancePct() {
+    return Math.round(Math.min(1, CONFIG.BASE_CARD_CHANCE + confirmedInvites() * CONFIG.INVITE_BONUS) * 100);
+  }
+
+  async function myRefCode() {
+    if (profile.refCode) return profile.refCode;
+    let id = null;
+    try {
+      if (typeof Online !== 'undefined' && Online.identify) { const who = await Online.identify(); id = who && who.id; }
+    } catch (e) { }
+    profile.refCode = 'u' + String(id || Store.uid()).replace(/[^0-9a-zA-Z_-]/g, '').slice(0, 20);
+    save();
+    return profile.refCode;
+  }
+
+  async function referralLink() {
+    const code = await myRefCode();
+    const inVK = typeof Platform !== 'undefined' && Platform.isAvailable && Platform.isAvailable();
+    if (inVK) return 'https://vk.com/app' + REF_APP_ID + '#ref=' + code;
+    return location.origin + location.pathname + '?ref=' + code;
+  }
+
+  function readRefFromUrl() {
+    try {
+      const q = new URLSearchParams(location.search || '');
+      if (q.get('ref')) return String(q.get('ref'));
+      const h = String(location.hash || '').replace(/^#/, '');
+      if (h) {
+        const hp = new URLSearchParams(h);
+        if (hp.get('ref')) return String(hp.get('ref'));
+      }
+      if (typeof Platform !== 'undefined' && Platform.getLaunchParams) {
+        const lp = Platform.getLaunchParams();
+        if (lp && (lp.ref || lp.vk_ref)) return String(lp.ref || lp.vk_ref);
+      }
+    } catch (e) { }
+    return null;
+  }
+
+  // Друг открыл игру по чужой ссылке — фиксируем переход на сервере
+  async function claimRefOnLaunch() {
+    const ref = readRefFromUrl();
+    if (!ref || typeof Online === 'undefined' || !Online.refClaim) return;
+    const mine = await myRefCode();
+    if (ref === mine || profile.refClaimedBy === ref) return;
+    const count = await Online.refClaim(ref, '');
+    profile.refClaimedBy = ref;
+    save();
+    if (count != null) {
+      Store.pushNotification(profile, 'Ты пришёл по ссылке друга 👥 Бонус отправителю начислен!', 'invite');
+      save();
+      updateBadge();
+      toast('Приглашение принято — друг получил бонус 🎉', 'good');
     }
   }
 
-  function doInvite() {
-    if (profile.invites >= CONFIG.MAX_INVITES) { toast('Достигнут максимум приглашений'); return; }
-    function grant() {
-      profile.invites++;
-      Store.pushNotification(profile, 'Друг приглашён! Теперь +' + (profile.invites * 10) + '% к шансу карточки.', 'invite');
+  // Сколько друзей подтвердилось (по данным сервера)
+  async function syncReferrals() {
+    if (typeof Online === 'undefined' || !Online.refStatus) return;
+    const code = await myRefCode();
+    if (!code) return;
+    const count = await Online.refStatus(code);
+    if (count == null) return;
+    const capped = Math.min(CONFIG.MAX_INVITES, count);
+    if (capped !== (profile.invitesConfirmed || 0)) {
+      profile.invitesConfirmed = capped;
       save();
+      if (capped > 0) {
+        Store.pushNotification(profile, 'Друзей подтверждено: ' + capped + ' · +' + (capped * Math.round(CONFIG.INVITE_BONUS * 100)) + '% к шансу карточки', 'invite');
+      }
       renderInvite();
       updateBadge();
-      toast('+10% к шансу карточки', 'good');
-      SFX.rarity(3);
+      renderHome();
     }
-    if (typeof Platform !== 'undefined' && Platform.isAvailable()) {
-      Platform.invite().then(grant).catch(grant);
-    } else {
-      grant();
+  }
+
+  function renderInvite() {
+    const n = confirmedInvites();
+    const bonus = n * Math.round(CONFIG.INVITE_BONUS * 100);
+    const cntEl = $('#invite-count'); if (cntEl) cntEl.textContent = n;
+    const bonusEl = $('#invite-bonus');
+    if (bonusEl) bonusEl.textContent = '+' + bonus + '% к шансу карточки';
+    const maxEl = $('#invite-max'); if (maxEl) maxEl.textContent = CONFIG.MAX_INVITES;
+    const btn = $('#btn-invite');
+    if (btn) {
+      btn.disabled = n >= CONFIG.MAX_INVITES;
+      btn.textContent = n >= CONFIG.MAX_INVITES ? 'Максимум друзей' : 'Отправить приглашение';
     }
+    const pending = $('#invite-pending');
+    if (pending) {
+      pending.textContent = n >= CONFIG.MAX_INVITES
+        ? 'Все слоты заполнены — спасибо!'
+        : 'Бонус начислится, когда друг зайдёт по ссылке и начнёт играть.';
+    }
+    referralLink().then(function (link) {
+      const inp = $('#invite-link');
+      if (inp) inp.value = link;
+    });
+  }
+
+  function doInvite() {
+    if (confirmedInvites() >= CONFIG.MAX_INVITES) { toast('Достигнут максимум друзей'); return; }
+    referralLink().then(function (link) {
+      const share = (typeof Platform !== 'undefined' && Platform.isAvailable())
+        ? Platform.invite().catch(function () { return Platform.share(link, 'Заходи в Brainrot Blocks, там карточки и RAP!'); })
+        : Promise.reject(new Error('нет VK'));
+      share.catch(function () {
+        // вне VK — просто копируем ссылку
+        try { navigator.clipboard && navigator.clipboard.writeText(link); } catch (e) { }
+        toast('Ссылка скопирована — отправь другу', 'good');
+      }).then(function () {
+        const inp = $('#invite-link'); if (inp) inp.value = link;
+        toast('Ждём, пока друг зайдёт по ссылке 👀');
+        syncReferrals();
+      });
+    });
+  }
+
+  function copyInviteLink() {
+    referralLink().then(function (link) {
+      const done = function () { toast('Ссылка скопирована', 'good'); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(done).catch(done);
+        } else { done(); }
+      } catch (e) { done(); }
+    });
   }
 
   /* ---------------- SETTINGS ---------------- */
@@ -1815,6 +2000,13 @@ profile.cards.push(won);
     const daily = Store.checkDaily(profile);
     save();
 
+    // живой фон: переливающаяся аврора за интерфейсом
+    if (!document.querySelector('.aurora-layer')) {
+      const au = document.createElement('div');
+      au.className = 'aurora-layer';
+      document.body.appendChild(au);
+    }
+
     $('#btn-play').onclick = function () {
       if (!profile.settings.tutorialDone) openTutorial(startGame);
       else startGame();
@@ -1890,6 +2082,8 @@ profile.cards.push(won);
     });
 
     $('#btn-invite').onclick = doInvite;
+    const copyBtn = $('#btn-invite-copy');
+    if (copyBtn) copyBtn.onclick = copyInviteLink;
 
     $('#btn-sound').onclick = function () {
       profile.settings.sound = !profile.settings.sound;
@@ -1910,7 +2104,13 @@ profile.cards.push(won);
       }
       Platform.init().then(function (vk) {
         if (vk && addHome) addHome.style.display = '';
+        // после инициализации VK можно проверить приглашения по ссылке
+        claimRefOnLaunch();
+        syncReferrals();
       });
+    } else {
+      claimRefOnLaunch();
+      syncReferrals();
     }
     $('#btn-tutorial2').onclick = function () { openTutorial(null); };
     $('#btn-reset').onclick = function () {

@@ -126,11 +126,41 @@ const Online = (function () {
     }
   }
 
+  // ---- рефералы (друзья) ----
+  // Друг открыл игру по ссылке — сообщаем серверу, что переход реальный.
+  async function refClaim(refCode, name) {
+    if (!enabled() || !refCode) return null;
+    try {
+      const who = await identify();
+      const res = await fetchJson(api + '/ref/claim', {
+        method: 'POST',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ ref: refCode, user: who.id, name: name || who.name }),
+      });
+      return (res && typeof res.count === 'number') ? res.count : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Сколько друзей реально пришло по моей ссылке
+  async function refStatus(refCode) {
+    if (!enabled() || !refCode) return null;
+    try {
+      const res = await fetchJson(api + '/ref/status?ref=' + encodeURIComponent(refCode), { headers: headers() });
+      return (res && typeof res.count === 'number') ? res.count : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   return {
     enabled: enabled,
     top: top,
     submit: submit,
     identify: identify,
+    refClaim: refClaim,
+    refStatus: refStatus,
     myId: function () { return me ? me.id : null; },
     endpoint: api,
   };
