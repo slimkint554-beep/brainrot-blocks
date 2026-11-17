@@ -57,7 +57,9 @@ const Store = (function () {
       // v0.3: раньше бонус за «друзей» начислялся сразу по нажатию кнопки (баг),
       // поэтому старые начисления обнуляем — теперь считаются только те друзья,
       // которые реально открыли игру по ссылке.
-      if (!merged.invitesMigrated) {
+      // Важно: проверяем флаг в сохранённом профиле (p), а не в merged —
+      // newProfile() уже содержит invitesMigrated: true, и Object.assign его подставит.
+      if (p.invitesMigrated !== true) {
         merged.invites = 0;
         merged.invitesConfirmed = 0;
         merged.invitesMigrated = true;
