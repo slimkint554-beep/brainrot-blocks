@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;700;900&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
 <title>Brainrot Blocks</title>
-<link rel="stylesheet" href="css/style.css?v=1794937681">
+<link rel="stylesheet" href="css/style.css?v=1794940130">
 </head>
 <body>
 <div id="app">
@@ -197,9 +197,59 @@
       <button class="setting-row" id="btn-testcard">🎁 Выдать тестовую карточку</button>
       <button class="setting-row" id="btn-add-home">📲 Добавить на главный экран</button>
       <button class="setting-row" id="btn-tutorial2">🎓 Обучение заново</button>
+      <button class="setting-row admin-row-link" id="btn-admin" style="display:none">🛠 Админ-панель</button>
       <button class="setting-row danger" id="btn-reset">🗑️ Сбросить прогресс</button>
       <div class="about">Brainrot Blocks · прототип v0.2<br>Данные хранятся локально в браузере</div>
     </div>
+  </section>
+
+  <!-- ================= ADMIN (только владелец игры) ================= -->
+  <section class="screen" id="screen-admin">
+    <div class="page-head">
+      <button class="iconbtn" data-back aria-label="Назад">←</button>
+      <h2>Админ-панель</h2>
+      <div class="pill small">🪙 <b id="admin-coins">0</b></div>
+    </div>
+
+    <div class="admin-block">
+      <div class="admin-title">Выдать карточки</div>
+      <div class="filter-row" id="admin-rarities"></div>
+      <div class="admin-grid">
+        <label class="admin-field">
+          <span>RAP за карточку</span>
+          <input class="admin-input" id="admin-rap" type="number" inputmode="numeric" min="0" step="1000" value="1000000">
+        </label>
+        <label class="admin-field">
+          <span>Сколько штук</span>
+          <input class="admin-input" id="admin-count" type="number" inputmode="numeric" min="1" max="50" value="3">
+        </label>
+      </div>
+      <div class="admin-row-btns">
+        <button class="btn btn-ghost" data-rap-quick="1000000">1 млн</button>
+        <button class="btn btn-ghost" data-rap-quick="50000000">50 млн</button>
+        <button class="btn btn-ghost" data-rap-quick="500000000">500 млн</button>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" id="btn-admin-grant">🎁 Выдать карточки</button>
+      <div class="admin-hint" id="admin-grant-hint"></div>
+    </div>
+
+    <div class="admin-block">
+      <div class="admin-title">Монеты</div>
+      <div class="admin-row-btns">
+        <button class="btn btn-ghost" data-coins="1000">+1 000</button>
+        <button class="btn btn-ghost" data-coins="100000">+100 000</button>
+        <button class="btn btn-ghost" data-coins="10000000">+10 млн</button>
+      </div>
+    </div>
+
+    <div class="admin-block">
+      <div class="admin-title">Сервис</div>
+      <button class="setting-row" id="btn-admin-ads">📺 Сбросить лимит рекламы</button>
+      <button class="setting-row" id="btn-admin-daily">📅 Сбросить ежедневную награду</button>
+      <button class="setting-row" id="btn-admin-tutorial">🎓 Сбросить обучение</button>
+    </div>
+
+    <div class="admin-foot" id="admin-foot">Доступно только владельцу игры.</div>
   </section>
 
 </div>
@@ -213,11 +263,11 @@ window.__errors = [];
 window.addEventListener('error', function (e) { window.__errors.push(String(e.message)); });
 window.addEventListener('unhandledrejection', function (e) { window.__errors.push('rejection: ' + String(e.reason)); });
 </script>
-<script src="js/data.js?v=1794937681"></script>
-<script src="js/platform.js?v=1794937681"></script>
-<script src="js/online.js?v=1794937681"></script>
-<script src="js/engine.js?v=1794937681"></script>
-<script src="js/storage.js?v=1794937681"></script>
-<script src="js/app.js?v=1794937681"></script>
+<script src="js/data.js?v=1794940130"></script>
+<script src="js/platform.js?v=1794940130"></script>
+<script src="js/online.js?v=1794940130"></script>
+<script src="js/engine.js?v=1794940130"></script>
+<script src="js/storage.js?v=1794940130"></script>
+<script src="js/app.js?v=1794940130"></script>
 </body>
 </html>
