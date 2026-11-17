@@ -1488,3 +1488,26 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
   100%{transform:scale(1) rotate(0);opacity:1}
 }
 
+
+/* ================= v0.6: админ-панель (только владелец) ================= */
+.admin-block{background:#101a30;border:1px solid rgba(255,255,255,.11);border-radius:14px;padding:12px;margin-bottom:10px}
+.admin-title{font-weight:800;font-size:13px;letter-spacing:.02em;margin-bottom:8px;color:#9fb2d0}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.admin-field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#8ea3c4}
+.admin-input{background:#0b1322;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px 10px;color:#fff;font:inherit;font-size:14px;width:100%;box-sizing:border-box}
+.admin-input:focus{outline:none;border-color:rgba(124,92,255,.7);box-shadow:0 0 0 2px rgba(124,92,255,.25)}
+.admin-row-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.admin-row-btns .btn{flex:1 1 auto;min-width:84px}
+.admin-hint{font-size:11px;color:#8ea3c4;margin-top:8px;line-height:1.4}
+.admin-foot{font-size:11px;color:#6f819c;text-align:center;padding:6px 0 16px}
+.admin-row-link{color:#ffd166}
+#screen-admin #admin-rarities{margin-bottom:4px}
+#screen-admin .chip{font-size:11.5px}
+
+/* чипы редкостей в админке: сетка, чтобы все влезали */
+#admin-rarities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible;padding-bottom:0}
+#admin-rarities .chip{display:block;min-width:0;width:100%;border-radius:10px;padding:7px 8px;font-size:11px;line-height:1.2;white-space:normal;text-align:left}
+#admin-rarities .chip b{display:block;margin:2px 0 0;font-size:11px;opacity:.85}
+@media (max-width:430px){
+  #admin-rarities{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
