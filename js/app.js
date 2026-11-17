@@ -480,6 +480,7 @@
       el.style.removeProperty('--pv');
       el.style.removeProperty('--pv-bg');
     });
+    if (drag) drag.pv = [];
   }
 
   function hexToRgb(hex) {
@@ -489,21 +490,43 @@
     return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
   }
 
-  // Подсветка места: клетки красятся цветом самой фигуры — видно и форму, и куда именно она встанет
+  // Подсветка места: клетки красятся цветом самой фигуры — видно и форму, и куда именно она встанет.
+  // Важно: при каждом сдвиге обновляем ТОЛЬКО изменившиеся клетки. Если снимать и вешать класс
+  // на всех клетках заново, CSS-анимация перезапускается на каждом пикселе движения — подсветка
+  // мигает «с нуля». Поэтому старые клетки, которые остались в цели, не трогаем.
   function previewPlacement(r0, c0, m, ok, color) {
     const size = BlockEngine.shapeSize(m);
     const rgb = hexToRgb(color);
-    const alpha = ok ? 0.92 : 0.42;
+    const alpha = ok ? 0.92 : 0.45;
+    const cls = ok ? 'preview-ok' : 'preview-bad';
+    const other = ok ? 'preview-bad' : 'preview-ok';
+    const keep = [];
+
     for (let r = 0; r < size.h; r++) {
       for (let c = 0; c < size.w; c++) {
         if (!m[r][c]) continue;
         const el = cellEl(r0 + r, c0 + c);
         if (!el) continue;
+        keep.push(el);
+        if (!el.classList.contains(cls)) {
+          el.classList.remove(other);
+          el.classList.add(cls);
+        }
         el.style.setProperty('--pv', ok ? (color || '#2ee6a6') : 'var(--bad)');
         el.style.setProperty('--pv-bg', 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + alpha + ')');
-        el.classList.add(ok ? 'preview-ok' : 'preview-bad');
       }
     }
+
+    // снимаем подсветку только с клеток, которые вышли из цели
+    const prev = (drag && drag.pv) || [];
+    for (let i = 0; i < prev.length; i++) {
+      const el = prev[i];
+      if (keep.indexOf(el) >= 0) continue;
+      el.classList.remove('preview-ok', 'preview-bad');
+      el.style.removeProperty('--pv');
+      el.style.removeProperty('--pv-bg');
+    }
+    if (drag) drag.pv = keep;
   }
 
   /* ---- drag & drop ---- */
@@ -572,7 +595,7 @@
     // На телефоне фигуру поднимаем над пальцем: так видно и форму, и место постановки.
     const lift = isTouch ? Math.round(gpc * 1.6 + dm.gap * 2) : 0;
 
-    drag = { idx: idx, m: piece.m, color: piece.color, ghost: ghost, gpc: gpc, ggap: dm.gap, grabR: grabR, grabC: grabC, lift: lift, dock: dm.dock, target: null };
+    drag = { idx: idx, m: piece.m, color: piece.color, ghost: ghost, gpc: gpc, ggap: dm.gap, grabR: grabR, grabC: grabC, lift: lift, dock: dm.dock, target: null, pv: [] };
     positionGhost(e.clientX, e.clientY);
 
     // «фигура выросла в руке»: стартует маленькой (как в лотке) и пружинно
@@ -593,10 +616,10 @@
     e.preventDefault();
     positionGhost(e.clientX, e.clientY);
 
-    clearPreview();
     const board = document.getElementById('board');
     const cell = pointToCell(e.clientX, e.clientY - (drag.lift || 0));
     if (!cell) {
+      clearPreview();
       drag.target = null;
       if (drag.ghost) drag.ghost.classList.remove('over-target');
       if (board) board.classList.remove('drag-active');
