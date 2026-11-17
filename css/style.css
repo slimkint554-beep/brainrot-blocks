@@ -1363,9 +1363,11 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
 .chip.active,.segbtn.active,.navbtn.active{box-shadow:0 0 22px -6px rgba(124,92,255,.9)}
 
 /* ================= v0.4: постановка блоков на телефоне + чипы крафта ================= */
-/* Пока тащишь фигуру, поле «в фокусе»: пустые клетки притухают, цель читается сразу */
-.board.drag-active{box-shadow:0 0 0 2px rgba(124,92,255,.5),0 0 34px rgba(124,92,255,.32)}
-.board.drag-active .cell:not(.preview-ok):not(.preview-bad){opacity:.5}
+/* Пока тащишь фигуру, поле НЕ получает лишнюю рамку и дымку — только подсветка клеток цели.
+   Раньше здесь был box-shadow 0 0 0 2px + свечение 34px: это и читалось как «квадратная
+   рамка» вокруг поля и «замутнение» сетки. */
+.board.drag-active{box-shadow:none}
+.board.drag-active .cell:not(.preview-ok):not(.preview-bad){opacity:1}
 
 /* Место постановки: заливка цветом фигуры + толстая рамка + свечение */
 .cell.preview-ok{
@@ -1382,14 +1384,14 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
 
 /* Фигура в руке: крупнее, ярче, со свечением своего цвета */
 .drag-ghost{
-  filter:drop-shadow(0 16px 26px rgba(0,0,0,.7)) drop-shadow(0 0 18px var(--pcol,rgba(124,92,255,.85))) drop-shadow(0 0 44px rgba(124,92,255,.4));
+  filter:drop-shadow(0 10px 18px rgba(0,0,0,.45)) drop-shadow(0 0 14px var(--pcol,rgba(124,92,255,.7)));
 }
 .drag-ghost.over-target{
-  opacity:.45;
-  filter:drop-shadow(0 12px 20px rgba(0,0,0,.55)) drop-shadow(0 0 22px var(--pcol,#2ee6a6));
+  opacity:.32;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.4)) drop-shadow(0 0 16px var(--pcol,#2ee6a6));
 }
 .drag-ghost .pcell.on{
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -3px 0 rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -3px 0 rgba(0,0,0,.2);
 }
 
 /* Чипы редкостей в крафте: сетка, чтобы «Легендарная» не уезжала за край экрана */
@@ -1421,8 +1423,14 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
   transition:transform .13s cubic-bezier(.2,.9,.2,1.2),opacity .13s ease;
   z-index:60;
 }
-.drag-ghost.over-target{--gs:var(--dock,.88);opacity:.4}
+.drag-ghost.over-target{--gs:var(--dock,.88);opacity:.32}
 .drag-ghost.pop{animation:ghostPop .3s cubic-bezier(.2,.9,.2,1.2)}
+/* Фигура в руке — единое целое: без белого контура вокруг каждой клетки
+   (он и читался как «квадратные рамки»), только мягкий объём. */
+.drag-ghost .pcell.on{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.26),inset 0 -3px 0 rgba(0,0,0,.20)!important;
+}
+.drag-ghost{gap:var(--ggap,3px)}
 @keyframes ghostPop{
   0%{transform:scale(.4)}
   62%{transform:scale(1.16)}
@@ -1430,15 +1438,14 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
 }
 
 /* Цель читается сразу: место постановки заливается цветом фигуры — как будто она
-   уже стоит. Никаких белых рамок (клетки читались как отдельные квадраты) и
-   никакого затемнения остального поля. */
-.board.drag-active .cell:not(.preview-ok):not(.preview-bad){opacity:1}
+   уже стоит. Никаких белых рамок (клетки читались как отдельные квадраты), без
+   затемнения и без свечения вокруг всего поля. */
 .cell.preview-ok{
   background:var(--pv-bg,rgba(46,230,166,.92))!important;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.34),
-    inset 0 -3px 0 rgba(0,0,0,.22),
-    0 0 16px var(--pv,rgba(46,230,166,.85))!important;
+    inset 0 1px 0 rgba(255,255,255,.30),
+    inset 0 -3px 0 rgba(0,0,0,.20),
+    0 0 10px var(--pv,rgba(46,230,166,.7))!important;
   animation:previewPulse .9s ease-in-out infinite;
 }
 .cell.preview-bad{
