@@ -32,6 +32,9 @@ const CONFIG = {
   LEADERBOARD_API: 'https://brainrot-leaderboard.slimkint554.workers.dev',
   LEADERBOARD_TOKEN: 'BB-6sqhf3e90xiaricq',
   LEADERBOARD_MAX: 50,
+
+  // Админ-панель: показывается только этим VK id (владелец игры) и на localhost.
+  OWNER_IDS: ['1123114004'],
 };
 
 // Страховка: отладочные функции (тестовая карточка, window.__bb) работают

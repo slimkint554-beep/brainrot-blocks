@@ -151,6 +151,7 @@
     if (id === 'upgrades') renderUpgrades();
     if (id === 'craft') renderCraftScreen();
     if (id === 'settings') renderSettings();
+    if (id === 'admin') renderAdmin();
   }
 
   function refreshActive() {
@@ -2047,9 +2048,103 @@ profile.cards.push(won);
     });
   }
 
-  /* ---------------- SETTINGS ---------------- */
+  /* ---------------- ADMIN (только для владельца игры) ----------------
+     Доступ проверяется по VK id из Platform.getUserInfo() (его отдаёт сам VK,
+     подделать из URL нельзя). На localhost панель открыта для разработки. */
+  let adminRarity = 'unusual';
+  let isOwner = false;
+
+  function isLocalHost() {
+    return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  }
+
+  // true, если текущий игрок — владелец. Без VK (обычный браузер) — только localhost.
+  async function detectOwner() {
+    if (isLocalHost()) return true;
+    if (typeof Platform === 'undefined' || !Platform.isAvailable || !Platform.isAvailable()) return false;
+    const ids = (CONFIG.OWNER_IDS || []).map(String);
+    if (!ids.length) return false;
+    try {
+      const u = await Platform.getUserInfo();
+      if (u && u.id) return ids.indexOf(String(u.id)) >= 0;
+    } catch (e) { }
+    return false;
+  }
+
+  function revealAdminEntry() {
+    const row = $('#btn-admin');
+    if (row) row.style.display = isOwner ? '' : 'none';
+    if (!isOwner && document.getElementById('screen-admin') && document.getElementById('screen-admin').classList.contains('active')) {
+      show('home');
+    }
+  }
+
+  // Карточка для выдачи: редкость + точный RAP + максимум баффов
+  function adminMakeCard(rarityId, rap) {
+    const topRarity = RARITIES[RARITIES.length - 1].id;
+    const pool = rarityId === topRarity
+      ? brainrotsByTag('rarest')
+      : normalBrainrotsByRarity(rarityId);
+    const list = pool.length ? pool : BRAINROTS;
+    const ch = list[Math.floor(Math.random() * list.length)];
+    const buffs = [];
+    while (buffs.length < CONFIG.MAX_BUFFS) {
+      const b = BUFFS[Math.floor(Math.random() * BUFFS.length)];
+      if (!b || buffs.indexOf(b.id) >= 0) break;
+      buffs.push(b.id);
+    }
+    return {
+      uid: 'adm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      charId: ch.id,
+      rarity: rarityId,
+      buffs: buffs,
+      up: 0,
+      rap: Math.max(0, Math.round(rap)),
+      ts: Date.now(),
+    };
+  }
+
+  function renderAdmin() {
+    if (!isOwner) return;
+    const coins = $('#admin-coins');
+    if (coins) coins.textContent = fmt(profile.coins);
+
+    const row = $('#admin-rarities');
+    if (row) {
+      row.innerHTML = RARITIES.map(function (r) {
+        return '<button class="chip' + (adminRarity === r.id ? ' active' : '') + '" data-arar="' + r.id + '">' +
+          r.short + ' <b>' + fmt(r.rap) + '</b></button>';
+      }).join('');
+      Array.prototype.forEach.call(row.children, function (btn) {
+        btn.onclick = function () { adminRarity = btn.dataset.arar; renderAdmin(); };
+      });
+    }
+
+    const hint = $('#admin-grant-hint');
+    if (hint) {
+      const rar = rarityById(adminRarity) || RARITIES[0];
+      hint.textContent = 'Выбранная редкость: ' + rar.short + ' · карточек в профиле: ' + profile.cards.length +
+        ' · всего RAP: ' + fmt(profile.cards.reduce(function (s, c) { return s + (c.rap || 0); }, 0));
+    }
+  }
+
+  function adminGrant() {
+    if (!isOwner) return;
+    const rap = Math.max(0, Number($('#admin-rap').value) || 0);
+    const count = Math.max(1, Math.min(50, Math.round(Number($('#admin-count').value) || 1)));
+    const cards = [];
+    for (let i = 0; i < count; i++) cards.push(adminMakeCard(adminRarity, rap));
+    Store.addCards(profile, cards);
+    save();
+    const rar = rarityById(adminRarity) || RARITIES[0];
+    toast('Выдано ' + count + ' × ' + rar.short + ' по ' + fmt(rap) + ' RAP', 'good');
+    renderAdmin();
+    if (document.querySelector('.screen.active') && document.querySelector('.screen.active').id === 'screen-collection') renderCollection();
+  }
+
   function renderSettings() {
     $('#sound-state').textContent = profile.settings.sound ? 'вкл' : 'выкл';
+    revealAdminEntry();
   }
 
   /* ---------------- NOTIFICATIONS ---------------- */
@@ -2238,12 +2333,60 @@ profile.cards.push(won);
         // после инициализации VK можно проверить приглашения по ссылке
         claimRefOnLaunch();
         syncReferrals();
+        // и только теперь известен VK id — проверяем владельца
+        detectOwner().then(function (owner) { isOwner = !!owner; revealAdminEntry(); });
       });
     } else {
       claimRefOnLaunch();
       syncReferrals();
     }
     $('#btn-tutorial2').onclick = function () { openTutorial(null); };
+
+    /* ---- админ-панель: показываем только владельцу ---- */
+    const adminBtn = $('#btn-admin');
+    if (adminBtn) {
+      adminBtn.onclick = function () { if (isOwner) show('admin'); };
+    }
+    const grantBtn = $('#btn-admin-grant');
+    if (grantBtn) grantBtn.onclick = adminGrant;
+    $$('[data-rap-quick]').forEach(function (b) {
+      b.onclick = function () {
+        const inp = $('#admin-rap');
+        if (inp) inp.value = b.dataset.rapQuick;
+      };
+    });
+    $$('[data-coins]').forEach(function (b) {
+      b.onclick = function () {
+        if (!isOwner) return;
+        const add = Math.max(0, Math.round(Number(b.dataset.coins) || 0));
+        profile.coins += add;
+        save();
+        toast('+' + fmt(add) + ' монет', 'good');
+        renderAdmin();
+      };
+    });
+    const adsReset = $('#btn-admin-ads');
+    if (adsReset) adsReset.onclick = function () {
+      if (!isOwner) return;
+      profile.adCoin = { used: 0, resetAt: 0 };
+      save(); toast('Лимит рекламы сброшен');
+    };
+    const dailyReset = $('#btn-admin-daily');
+    if (dailyReset) dailyReset.onclick = function () {
+      if (!isOwner) return;
+      profile.daily = { last: null, streak: 0 };
+      save(); toast('Ежедневная награда сброшена');
+    };
+    const tutReset = $('#btn-admin-tutorial');
+    if (tutReset) tutReset.onclick = function () {
+      if (!isOwner) return;
+      profile.settings.tutorialDone = false;
+      save(); toast('Обучение сброшено');
+    };
+    detectOwner().then(function (owner) {
+      isOwner = !!owner;
+      revealAdminEntry();
+    });
     $('#btn-reset').onclick = function () {
       if (confirm('Сбросить весь прогресс? Это нельзя отменить.')) {
         Store.reset();
