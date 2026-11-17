@@ -90,7 +90,8 @@ h3{margin:0}
   transition:background .12s,box-shadow .12s,transform .08s}
 .cell.filled{background:linear-gradient(160deg,#3f6bff,#6a4dff);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 10px rgba(60,90,255,.28)}
-.cell.preview-ok{background:rgba(46,230,166,.30);box-shadow:inset 0 0 0 2px var(--good)}
+.cell.preview-ok{background:var(--pv-bg,rgba(46,230,166,.30));
+  box-shadow:inset 0 0 0 2px var(--pv,var(--good)),0 0 14px var(--pv,rgba(46,230,166,.6))}
 .cell.preview-bad{background:rgba(255,77,109,.24);box-shadow:inset 0 0 0 2px var(--bad)}
 .cell.hint{animation:hintPulse .5s ease 2}
 @keyframes hintPulse{
@@ -110,9 +111,14 @@ h3{margin:0}
 .pcell.on{background:linear-gradient(160deg,#4a74ff,#7a4dff);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
 .pcell:not(.on){background:transparent}
-.drag-ghost{position:fixed;display:grid;gap:3px;transform:translate(-50%,-50%);
-  pointer-events:none;z-index:9999;opacity:.95;filter:drop-shadow(0 14px 22px rgba(0,0,0,.6))}
+.drag-ghost{position:fixed;display:grid;gap:var(--ggap,3px);transform:translate(-50%,-50%);
+  pointer-events:none;z-index:9999;opacity:.97;
+  filter:drop-shadow(0 14px 22px rgba(0,0,0,.6)) drop-shadow(0 0 14px rgba(124,92,255,.55));
+  transition:opacity .12s ease}
+/* когда фигура уже «легла» на сетку — призрак светлеет, чтобы было видно подсветку клеток */
+.drag-ghost.over-target{opacity:.55;filter:drop-shadow(0 10px 18px rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(46,230,166,.55))}
 .drag-ghost .pcell{width:var(--gpc,20px);height:var(--gpc,20px)}
+.drag-ghost .pcell.on{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.2),0 0 10px var(--pcol,#4a74ff)}
 body.dragging{cursor:grabbing;overflow:hidden}
 
 .powers{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1355,4 +1361,122 @@ body{font-family:'Rubik','Segoe UI',system-ui,-apple-system,sans-serif}
 
 /* --- переключатели и чипы: активный горит ярче --- */
 .chip.active,.segbtn.active,.navbtn.active{box-shadow:0 0 22px -6px rgba(124,92,255,.9)}
+
+/* ================= v0.4: постановка блоков на телефоне + чипы крафта ================= */
+/* Пока тащишь фигуру, поле «в фокусе»: пустые клетки притухают, цель читается сразу */
+.board.drag-active{box-shadow:0 0 0 2px rgba(124,92,255,.5),0 0 34px rgba(124,92,255,.32)}
+.board.drag-active .cell:not(.preview-ok):not(.preview-bad){opacity:.5}
+
+/* Место постановки: заливка цветом фигуры + толстая рамка + свечение */
+.cell.preview-ok{
+  background:var(--pv-bg,rgba(46,230,166,.34))!important;
+  box-shadow:inset 0 0 0 3px var(--pv,var(--good)),inset 0 0 16px rgba(255,255,255,.30),0 0 18px var(--pv,rgba(46,230,166,.7))!important;
+  transform:scale(1.03);
+  animation:previewPulse .55s ease-in-out infinite,previewSnap .18s ease-out;
+}
+.cell.preview-bad{
+  background:rgba(255,77,109,.32)!important;
+  box-shadow:inset 0 0 0 3px var(--bad),0 0 14px rgba(255,77,109,.65)!important;
+}
+@keyframes previewSnap{from{transform:scale(.82)}to{transform:scale(1.03)}}
+
+/* Фигура в руке: крупнее, ярче, со свечением своего цвета */
+.drag-ghost{
+  filter:drop-shadow(0 16px 26px rgba(0,0,0,.7)) drop-shadow(0 0 18px var(--pcol,rgba(124,92,255,.85))) drop-shadow(0 0 44px rgba(124,92,255,.4));
+}
+.drag-ghost.over-target{
+  opacity:.45;
+  filter:drop-shadow(0 12px 20px rgba(0,0,0,.55)) drop-shadow(0 0 22px var(--pcol,#2ee6a6));
+}
+.drag-ghost .pcell.on{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -3px 0 rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.18);
+}
+
+/* Чипы редкостей в крафте: сетка, чтобы «Легендарная» не уезжала за край экрана */
+#craft-rarities{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  overflow:visible;padding-bottom:0;
+}
+#craft-rarities .chip{
+  display:block;min-width:0;width:100%;border-radius:10px;padding:7px 8px;
+  font-size:11.5px;line-height:1.2;white-space:normal;text-align:left;
+}
+#craft-rarities .chip b{margin-left:2px;font-size:12px}
+#craft-rarities .chip small{display:block;margin-top:1px;font-size:9px;font-weight:700;opacity:.78;letter-spacing:.02em}
+#craft-rarities .chip.active small{opacity:.92}
+/* На телефоне 3 колонки не влезают: «Легендарная» переносится и чип разъезжается.
+   2 колонки до 430px — самый длинный чип всегда в одну строку. */
+@media (max-width:430px){
+  #craft-rarities{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #craft-rarities .chip{font-size:11px;padding:6px 8px}
+}
+
+/* ================= v0.5: фигура в руке + сейв от тупика ================= */
+
+/* В руке фигура крупнее клетки поля и «садится» до точного размера над валидным
+   местом — видно, что она встанет ровно в подсвеченные клетки. */
+.drag-ghost{
+  transform:scale(var(--gs,1));
+  transform-origin:center center;
+  transition:transform .13s cubic-bezier(.2,.9,.2,1.2),opacity .13s ease;
+  z-index:60;
+}
+.drag-ghost.over-target{--gs:var(--dock,.88);opacity:.4}
+.drag-ghost.pop{animation:ghostPop .3s cubic-bezier(.2,.9,.2,1.2)}
+@keyframes ghostPop{
+  0%{transform:scale(.4)}
+  62%{transform:scale(1.16)}
+  100%{transform:scale(1)}
+}
+
+/* Цель читается сразу: тускнеет всё остальное, а место постановки горит */
+.board.drag-active .cell:not(.preview-ok):not(.preview-bad){opacity:.42}
+.cell.preview-ok{
+  background:var(--pv-bg,rgba(46,230,166,.9))!important;
+  box-shadow:
+    inset 0 0 0 3px rgba(255,255,255,.92),
+    inset 0 0 0 5px var(--pv,var(--good)),
+    inset 0 0 20px rgba(255,255,255,.45),
+    0 0 22px var(--pv,rgba(46,230,166,.85))!important;
+  animation:previewPulse .5s ease-in-out infinite,previewSnap .16s ease-out;
+}
+.cell.preview-bad{
+  background:rgba(255,77,109,.42)!important;
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.5),inset 0 0 0 5px var(--bad),0 0 18px rgba(255,77,109,.8)!important;
+}
+
+/* Бейдж «СЕЙВ!» и искры над лотком */
+.tray{position:relative}
+.save-badge{
+  position:absolute;left:50%;top:50%;z-index:12;pointer-events:none;
+  padding:9px 18px;border-radius:999px;white-space:nowrap;
+  font-weight:900;font-size:20px;letter-spacing:.05em;color:#04121a;
+  background:linear-gradient(135deg,#2ee6a6,#7cf5ff 58%,#ffe14d);
+  box-shadow:0 0 0 3px rgba(255,255,255,.4),0 14px 32px -10px rgba(46,230,166,.95),0 0 44px rgba(46,230,166,.7);
+  animation:saveBadge 1.24s cubic-bezier(.2,.9,.2,1.2) forwards;
+}
+@keyframes saveBadge{
+  0%{transform:translate(-50%,-50%) scale(.3) rotate(-8deg);opacity:0}
+  22%{transform:translate(-50%,-50%) scale(1.18) rotate(2deg);opacity:1}
+  58%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}
+  100%{transform:translate(-50%,-135%) scale(.9);opacity:0}
+}
+.save-fx{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
+.save-fx .fx-particle{left:50%;top:55%}
+
+/* Вспышка по полю в момент сейва */
+.board.save-flash{animation:saveFlash .78s ease-out}
+@keyframes saveFlash{
+  0%{box-shadow:0 0 0 0 rgba(46,230,166,.8),inset 0 0 70px rgba(46,230,166,.45)}
+  55%{box-shadow:0 0 0 14px rgba(46,230,166,.18),inset 0 0 26px rgba(46,230,166,.16)}
+  100%{box-shadow:0 0 0 28px rgba(46,230,166,0),inset 0 0 0 rgba(46,230,166,0)}
+}
+
+/* Новые фигуры после сейва выезжают по очереди */
+.piece.deal-in{animation:dealIn .42s cubic-bezier(.2,.9,.2,1.4) both;animation-delay:calc(var(--di,0) * 85ms)}
+@keyframes dealIn{
+  0%{transform:scale(.35) rotate(-10deg);opacity:0}
+  62%{transform:scale(1.12) rotate(2deg);opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}
+}
 
