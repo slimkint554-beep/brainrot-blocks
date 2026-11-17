@@ -593,7 +593,7 @@
     document.body.classList.add('dragging');
 
     // На телефоне фигуру поднимаем над пальцем: так видно и форму, и место постановки.
-    const lift = isTouch ? Math.round(gpc * 1.6 + dm.gap * 2) : 0;
+    const lift = isTouch ? Math.round(gpc * 1.25 + dm.gap) : 0;
 
     drag = { idx: idx, m: piece.m, color: piece.color, ghost: ghost, gpc: gpc, ggap: dm.gap, grabR: grabR, grabC: grabC, lift: lift, dock: dm.dock, target: null, pv: [] };
     positionGhost(e.clientX, e.clientY);
